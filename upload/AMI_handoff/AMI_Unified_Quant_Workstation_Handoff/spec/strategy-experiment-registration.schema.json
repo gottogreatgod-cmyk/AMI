@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ami.local/schemas/strategy-experiment-registration.schema.json",
+  "title": "AMI Strategy Experiment Registration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "experimentId",
+    "strategyId",
+    "strategyVersion",
+    "hypothesis",
+    "instrumentUniverse",
+    "timeframe",
+    "dataManifest",
+    "splitPlan",
+    "costModel",
+    "variantSet",
+    "metrics",
+    "stoppingRules",
+    "registeredAt",
+    "status"
+  ],
+  "properties": {
+    "experimentId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strategyId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strategyVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "configHash": {
+      "type": "string"
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 20
+    },
+    "economicRationale": {
+      "type": "string"
+    },
+    "instrumentUniverse": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "timeframe": {
+      "type": "string"
+    },
+    "marketSessionPolicy": {
+      "type": "string"
+    },
+    "dataManifest": {
+      "type": "object",
+      "required": [
+        "source",
+        "start",
+        "end",
+        "hash"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hash": {
+          "type": "string"
+        },
+        "knownGaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "splitPlan": {
+      "type": "object",
+      "required": [
+        "method",
+        "development",
+        "validation",
+        "holdoutLocked"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "development": {
+          "type": "string"
+        },
+        "validation": {
+          "type": "string"
+        },
+        "holdoutLocked": {
+          "type": "boolean",
+          "const": true
+        },
+        "purgeEmbargoPolicy": {
+          "type": "string"
+        }
+      }
+    },
+    "costModel": {
+      "type": "object",
+      "required": [
+        "version",
+        "commission",
+        "spread",
+        "slippage"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "commission": {
+          "type": "string"
+        },
+        "spread": {
+          "type": "string"
+        },
+        "slippage": {
+          "type": "string"
+        },
+        "otherCosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "variantSet": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "variantId",
+          "parameters"
+        ],
+        "properties": {
+          "variantId": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "baseline": {
+      "type": "string"
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "minimumSample": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stoppingRules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "knownConfounds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "registeredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "registeredBy": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "REGISTERED",
+        "DEVELOPMENT",
+        "VALIDATION",
+        "INCONCLUSIVE",
+        "REJECTED",
+        "OOS_SUPPORTED",
+        "PAPER_VALIDATING",
+        "OWNER_REVIEW",
+        "PROMOTED"
+      ]
+    }
+  }
+}

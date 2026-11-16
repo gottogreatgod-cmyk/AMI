@@ -1,0 +1,217 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  /* AMI workstation palette — deep slate terminal, prototype-reference hues */
+  --background: #080d13;
+  --foreground: #e5edf4;
+  --card: #101923;
+  --card-foreground: #e5edf4;
+  --popover: #0e1720;
+  --popover-foreground: #e5edf4;
+  --primary: #73a8e8;
+  --primary-foreground: #071019;
+  --secondary: #152330;
+  --secondary-foreground: #e5edf4;
+  --muted: #152330;
+  --muted-foreground: #8193a3;
+  --accent: #1b3347;
+  --accent-foreground: #e5f0fb;
+  --destructive: #ef777d;
+  --border: #1f303d;
+  --input: #223546;
+  --ring: #73a8e8;
+  --chart-1: #73a8e8;
+  --chart-2: #4bc39a;
+  --chart-3: #e7b86d;
+  --chart-4: #b69af0;
+  --chart-5: #ef777d;
+  --sidebar: #0d1720;
+  --sidebar-foreground: #e5edf4;
+  --sidebar-primary: #73a8e8;
+  --sidebar-primary-foreground: #071019;
+  --sidebar-accent: #1b3347;
+  --sidebar-accent-foreground: #e5f0fb;
+  --sidebar-border: #1f303d;
+  --sidebar-ring: #73a8e8;
+  --ami-green: #4bc39a;
+  --ami-red: #ef777d;
+  --ami-amber: #e7b86d;
+  --ami-blue: #73a8e8;
+  --ami-purple: #b69af0;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   AMI Workstation terminal styling
+--------------------------------------------------------------------------- */
+.terminal-font {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  background: linear-gradient(180deg, #111c27, #0e1720);
+  border: 1px solid #1f303d;
+  border-radius: 10px;
+}
+
+.panel-head {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  border-bottom: 1px solid #1f303d;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.chip {
+  border: 1px solid #2b3e4d;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #9eafbd;
+}
+
+/* thin dark scrollbars */
+.ami-scroll, .ami-scroll::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.ami-scroll::-webkit-scrollbar-track {
+  background: #0a121a;
+}
+.ami-scroll::-webkit-scrollbar-thumb {
+  background: #2b3e4d;
+  border-radius: 4px;
+}
+.ami-scroll::-webkit-scrollbar-thumb:hover {
+  background: #3a5268;
+}
+
+@keyframes ami-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.pulse-dot {
+  animation: ami-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ami-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: ami-fade-in 0.25s ease-out both;
+}
+
+.prose-ami h1, .prose-ami h2, .prose-ami h3 {
+  color: #e5edf4;
+  font-weight: 700;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+.prose-ami h1 { font-size: 15px; }
+.prose-ami h2 { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #a8c4e0; }
+.prose-ami h3 { font-size: 12px; }
+.prose-ami p { font-size: 12px; line-height: 1.6; color: #c3d0dc; margin: 6px 0; }
+.prose-ami ul { list-style: disc; padding-left: 18px; margin: 6px 0; }
+.prose-ami li { font-size: 12px; line-height: 1.55; color: #c3d0dc; margin: 3px 0; }
+.prose-ami strong { color: #e5edf4; }
+.prose-ami code { background: #0a121a; border: 1px solid #1f303d; padding: 1px 5px; border-radius: 4px; font-size: 11px; color: #9ecbff; }
+.prose-ami table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+.prose-ami th, .prose-ami td { border: 1px solid #1f303d; padding: 4px 8px; font-size: 11px; text-align: left; }
+.prose-ami th { background: #0d1720; color: #a8c4e0; }

@@ -1,0 +1,20 @@
+flowchart TD
+  CME[CME / COMEX feeds] --> AD[Provider adapters]
+  KRAKEN[Kraken public data] --> AD
+  AD --> INST[Instrument registry + contract resolver]
+  INST --> CAN[Canonical market store / replay]
+  CAN --> FEAT[Causal feature snapshots]
+  FEAT --> TECH[Technical / structure / momentum]
+  FEAT --> MICRO[Microstructure research]
+  FEAT --> QLIB[Qlib research worker]
+  TECH --> FUSE[AMI evidence fusion]
+  MICRO --> FUSE
+  QLIB --> FUSE
+  FUSE --> PROP[Strategy decision proposal]
+  PROP --> RISK[AMI independent risk authority]
+  RISK -->|Paper authorization only| OMS[AMI paper OMS]
+  OMS --> LEDGER[Paper fills / positions / P&L / audit ledger]
+  CAN -. read-only .-> UI[Unified workstation]
+  FUSE -. read-only .-> UI
+  RISK -. read-only .-> UI
+  LEDGER -. read-only .-> UI

@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ami.local/schemas/strategy-evaluation-result.schema.json",
+  "title": "AMI Strategy Evaluation Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "strategyId",
+    "strategyVersion",
+    "configHash",
+    "instrumentId",
+    "dataSnapshotHash",
+    "costModelVersion",
+    "split",
+    "sampleCount",
+    "trialCount",
+    "metrics",
+    "verdict",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "runId": {
+      "type": "string"
+    },
+    "strategyId": {
+      "type": "string"
+    },
+    "strategyVersion": {
+      "type": "string"
+    },
+    "configHash": {
+      "type": "string"
+    },
+    "instrumentId": {
+      "type": "string"
+    },
+    "dataSnapshotHash": {
+      "type": "string"
+    },
+    "costModelVersion": {
+      "type": "string"
+    },
+    "split": {
+      "enum": [
+        "DEVELOPMENT",
+        "VALIDATION",
+        "LOCKED_HOLDOUT",
+        "WALK_FORWARD",
+        "PAPER_FORWARD"
+      ]
+    },
+    "sampleCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "trialCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "netExpectancyR",
+        "profitFactor",
+        "maxDrawdownR",
+        "fees",
+        "slippage",
+        "winRate"
+      ],
+      "properties": {
+        "netExpectancyR": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "profitFactor": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "maxDrawdownR": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "fees": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "slippage": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "winRate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maeR": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mfeR": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "medianHoldBars": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "verdict": {
+      "enum": [
+        "INCONCLUSIVE",
+        "REJECTED",
+        "OOS_SUPPORTED",
+        "PAPER_VALIDATING",
+        "NOT_PROMOTED"
+      ]
+    },
+    "reasonCodes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "regimeBreakdownRef": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

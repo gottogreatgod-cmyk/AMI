@@ -1,0 +1,280 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PROPOSED_NOT_ALLOCATED",
+  "warning": "WP17-WP28 are proposed IDs only. Reconcile against the live AMI master ledger and current work-package index before allocation; if any ID exists, append using the next canonical ID without renumbering.",
+  "packages": [
+    {
+      "id": "WP17",
+      "title": "Unified Workstation UX",
+      "priority": "CRITICAL",
+      "dependsOn": [
+        "read_only_repository_baseline",
+        "current_market_view_as_built_map"
+      ],
+      "deliverables": [
+        "persistent full-screen shell",
+        "watchlist/instrument rail",
+        "1/2/4/6 multi-chart canvas",
+        "right metrics and risk sidebar",
+        "lower system/intelligence/events dock",
+        "workspace layout state"
+      ],
+      "acceptance": [
+        "four independently selectable charts",
+        "layout presets work at desktop sizes",
+        "all chart source/freshness states explicit",
+        "sidebar metrics sourced and defined",
+        "existing Market View display-only behavior preserved",
+        "UI cannot mutate risk or OMS"
+      ]
+    },
+    {
+      "id": "WP18",
+      "title": "Live Module Topology and Decision Lineage",
+      "priority": "HIGH",
+      "dependsOn": [
+        "WP17",
+        "canonical_module_registry_and_health_contract"
+      ],
+      "deliverables": [
+        "architecture graph",
+        "runtime status graph",
+        "decision lineage graph",
+        "node and edge inspectors"
+      ],
+      "acceptance": [
+        "graph derived from registry",
+        "declared versus observed status distinguished",
+        "node version health dependency permissions and evidence visible",
+        "decision lineage references actual run IDs",
+        "unknown status never rendered as healthy"
+      ]
+    },
+    {
+      "id": "WP19",
+      "title": "Strategy Performance Audit",
+      "priority": "CRITICAL",
+      "dependsOn": [
+        "canonical_experiment_artifacts",
+        "existing_strategy_and_data_inventory"
+      ],
+      "deliverables": [
+        "run reconciliation",
+        "net performance metric engine",
+        "loss and rejection taxonomy",
+        "regime/instrument breakdown",
+        "frozen baseline and loser retention"
+      ],
+      "acceptance": [
+        "every metric reproducible from source runs",
+        "fees spread slippage included",
+        "trial/sample counts visible",
+        "missing historical runs disclosed",
+        "losing/inconclusive variants preserved",
+        "no strategy promotion"
+      ]
+    },
+    {
+      "id": "WP20",
+      "title": "Futures Instrument Master",
+      "priority": "CRITICAL",
+      "dependsOn": [
+        "canonical_instrument_contract_review"
+      ],
+      "deliverables": [
+        "MNQ NQ MGC GC product roots",
+        "dated-contract resolver",
+        "exchange metadata and effective dates",
+        "expiry/notice/last-trade/session calendar mappings"
+      ],
+      "acceptance": [
+        "dated contract identity required",
+        "unknown or expired contracts fail closed",
+        "root symbols not routable",
+        "continuous adjusted series research-only",
+        "tick/size/multiplier/source metadata validated"
+      ]
+    },
+    {
+      "id": "WP21",
+      "title": "Futures Historical and Live Data Adapter",
+      "priority": "CRITICAL",
+      "dependsOn": [
+        "WP20",
+        "provider_cost_license_and_entitlement_gate"
+      ],
+      "deliverables": [
+        "provider capability matrix",
+        "historical data import",
+        "normalized canonical events",
+        "calendar and data-quality validation"
+      ],
+      "acceptance": [
+        "actual product entitlements verified",
+        "event/receive/ingest timestamps retained",
+        "source identity and hashes persisted",
+        "gaps corrections and sequence behavior tested",
+        "fixture mode distinct from real feed"
+      ]
+    },
+    {
+      "id": "WP22",
+      "title": "Futures Replay and Execution Cost Model",
+      "priority": "CRITICAL",
+      "dependsOn": [
+        "WP20",
+        "WP21"
+      ],
+      "deliverables": [
+        "tick/lot validation",
+        "commission and exchange fee model",
+        "spread/slippage/latency simulation",
+        "gap and partial-fill behavior",
+        "continuous-series roll replay"
+      ],
+      "acceptance": [
+        "golden contract/fill fixtures pass",
+        "net costs reconcile",
+        "gap-through-stop behavior tested",
+        "adverse cost sensitivities reported",
+        "no candle-only depth claims"
+      ]
+    },
+    {
+      "id": "WP23",
+      "title": "Research Provider Contract and Worker Runtime",
+      "priority": "HIGH",
+      "dependsOn": [
+        "AMI_existing_runtime_review",
+        "resource_and_security_gate"
+      ],
+      "deliverables": [
+        "versioned worker request/response contracts",
+        "provider health/error/timeout interfaces",
+        "fixture/no-network mode",
+        "resource and cost accounting"
+      ],
+      "acceptance": [
+        "worker isolated from AMI core",
+        "strict input/output validation",
+        "timeout/retry/cancel semantics tested",
+        "no risk/OMS mutation interface",
+        "provider state explicit"
+      ]
+    },
+    {
+      "id": "WP24",
+      "title": "Qlib Research Worker",
+      "priority": "HIGH",
+      "dependsOn": [
+        "WP23",
+        "WP19",
+        "point_in_time_dataset_contract"
+      ],
+      "deliverables": [
+        "small reproducible ML benchmark",
+        "canonical point-in-time dataset export",
+        "normalized forecast adapter"
+      ],
+      "acceptance": [
+        "MIT source/version and dependencies pinned",
+        "naive baseline compared",
+        "input/model/config lineage persisted",
+        "calibration and uncertainty reported",
+        "resource ceilings respected"
+      ]
+    },
+    {
+      "id": "WP25",
+      "title": "VeighNa Architecture and Connector Assessment",
+      "priority": "MEDIUM_HIGH",
+      "dependsOn": [
+        "WP20",
+        "WP23",
+        "AMI_canonical_market_and_OMS_contracts"
+      ],
+      "deliverables": [
+        "event/gateway compatibility review",
+        "core/add-on license audit",
+        "Windows/resource footprint report",
+        "narrow adapter decision"
+      ],
+      "acceptance": [
+        "no duplicate execution authority",
+        "exact source/add-on pins recorded",
+        "event and instrument model mapped",
+        "no broad install without approval"
+      ]
+    },
+    {
+      "id": "WP26",
+      "title": "Strategy Catalogue and Replication Registry",
+      "priority": "HIGH",
+      "dependsOn": [
+        "WP19",
+        "WP22",
+        "research_registration_schema"
+      ],
+      "deliverables": [
+        "paper/code/data registry",
+        "finite pre-registered experiments",
+        "replication reports and lineage"
+      ],
+      "acceptance": [
+        "hypotheses registered before comparative runs",
+        "source/paper/data licenses checked",
+        "look-ahead and survivorship risks audited",
+        "all attempts counted",
+        "reported paper metrics independently reproduced or marked unverified"
+      ]
+    },
+    {
+      "id": "WP27",
+      "title": "Cross-Market Benchmarking",
+      "priority": "HIGH",
+      "dependsOn": [
+        "WP19",
+        "WP20",
+        "WP22",
+        "WP24",
+        "WP26"
+      ],
+      "deliverables": [
+        "BTC/MNQ/MGC benchmark matrix",
+        "instrument-specific strategy versions",
+        "regime/session scorecards"
+      ],
+      "acceptance": [
+        "no strategy edge transfer assumed",
+        "instrument-specific costs and calendars used",
+        "chronological OOS design",
+        "holdout stays locked during tuning",
+        "results reproducible and uncertainty disclosed"
+      ]
+    },
+    {
+      "id": "WP28",
+      "title": "Forward Paper Validation and Independent Review",
+      "priority": "CRITICAL",
+      "dependsOn": [
+        "WP21",
+        "WP22",
+        "WP27",
+        "accepted_AMI_paper_risk_lifecycle"
+      ],
+      "deliverables": [
+        "live-data paper observation",
+        "paper OMS reconciliation",
+        "operational soak and exception report",
+        "independent evidence review"
+      ],
+      "acceptance": [
+        "paper positions/orders/fills reconcile after restart",
+        "provider disconnect/stale feed tests pass",
+        "no auto-promotion",
+        "live execution remains disabled",
+        "owner reviews evidence before any status promotion"
+      ]
+    }
+  ]
+}

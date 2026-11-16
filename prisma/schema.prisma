@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// AMI Unified Quant Workstation — persistence
+// Everything is scoped to a user (sign-in gating). Runs/campaigns are
+// reproducible backtest artifacts; no live trading state exists in this DB.
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String?
+  passwordHash String
+  isDemo       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  strategies   Strategy[]
+  runs         Run[]
+  campaigns    Campaign[]
+}
+
+model Strategy {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key         String // stable slug, unique per user
+  name        String
+  description String
+  family      String // trend | breakout | mean-reversion | momentum | cautionary
+  config      String // JSON StrategyConfig (see src/lib/engine/types.ts)
+  isStarter   Boolean  @default(false)
+  parentKey   String? // fork lineage
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  runs        Run[]
+
+  @@unique([userId, key])
+  @@index([userId, family])
+}
+
+model Run {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId    String
+  strategy      Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  symbol        String
+  tf            String
+  status        String    @default("PENDING") // PENDING | RUNNING | DONE | ERROR | SKIPPED
+  error         String?
+  daysRequested Int       @default(0)
+  fromTs        DateTime?
+  toTs          DateTime?
+  barsTested    Int       @default(0)
+  metrics       String? // JSON RunMetrics
+  trades        String? // JSON Trade[] (capped)
+  equity        String? // JSON equity curve (downsampled)
+  review        String? // JSON AutoReview
+  dataQuality   String? // JSON DataQuality
+  campaignId    String?
+  campaign      Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, symbol, tf])
+  @@index([campaignId])
+}
+
+model Campaign {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String
+  strategyIds  String // JSON string[]
+  symbols      String // JSON string[]
+  tfs          String // JSON string[]
+  days         Int
+  status       String    @default("RUNNING") // RUNNING | DONE | ERROR
+  total        Int       @default(0)
+  done         Int       @default(0)
+  failed       Int       @default(0)
+  summary      String? // JSON summary once finished
+  createdAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  runs         Run[]
+
+  @@index([userId, createdAt])
+}

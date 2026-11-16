@@ -1,0 +1,26 @@
+sequenceDiagram
+  participant P as Provider
+  participant A as AMI Adapter
+  participant C as Canonical Store
+  participant F as Feature Builder
+  participant S as Strategy/Models
+  participant X as Evidence Fusion
+  participant R as AMI Risk
+  participant O as Paper OMS
+  participant L as Ledger
+  P->>A: Source event + source timestamp
+  A->>A: Validate transport, identity and precision
+  A->>C: Canonical event + provenance
+  C->>C: Freshness, sequence, gap and contract checks
+  C->>F: Causal snapshot
+  F->>S: Versioned feature snapshot
+  S->>X: Forecasts and strategy evidence
+  X->>X: Validate lineage, calibration and conflicts
+  X->>R: Decision proposal or NO_TRADE
+  R->>R: Independent limits / exposure / cost gate
+  alt Paper authorization passes
+    R->>O: Paper-only authorization
+    O->>L: Simulated order/fill/position events
+  else Rejected / stale / unknown
+    R->>L: Veto and reason event
+  end

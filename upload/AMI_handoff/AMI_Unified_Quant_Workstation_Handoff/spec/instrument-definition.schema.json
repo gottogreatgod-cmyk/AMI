@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ami.local/schemas/instrument-definition.schema.json",
+  "title": "AMI Instrument Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "instrumentId",
+    "assetClass",
+    "productType",
+    "venue",
+    "rootSymbol",
+    "contractType",
+    "currency",
+    "status",
+    "source",
+    "observedAt",
+    "metadataHash"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "instrumentId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assetClass": {
+      "enum": [
+        "CRYPTO",
+        "EQUITY",
+        "INDEX",
+        "FUTURE",
+        "OPTION",
+        "FX",
+        "METAL_SPOT",
+        "CFD"
+      ]
+    },
+    "productType": {
+      "type": "string"
+    },
+    "venue": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rootSymbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contractType": {
+      "enum": [
+        "ROOT",
+        "DATED_CONTRACT",
+        "CONTINUOUS_UNADJUSTED",
+        "CONTINUOUS_BACK_ADJUSTED",
+        "CASH_INDEX",
+        "ETF",
+        "SPOT",
+        "CFD"
+      ]
+    },
+    "fullContractSymbol": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "contractMonth": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 12
+    },
+    "contractYear": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 2000
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "quoteUnit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "multiplier": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "tickSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "tickValue": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "quantityStep": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "minimumQuantity": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "firstNoticeDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "lastTradeDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "expirationDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "sessionCalendarId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "timezone": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "PROPOSED",
+        "NOT_CONFIGURED",
+        "ACTIVE_DATA_ONLY",
+        "RESEARCH_ONLY",
+        "PAPER_ELIGIBLE",
+        "DISABLED",
+        "EXPIRED",
+        "REJECTED"
+      ]
+    },
+    "tradable": {
+      "type": "boolean"
+    },
+    "source": {
+      "type": "string"
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effectiveFrom": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "effectiveTo": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "metadataHash": {
+      "type": "string",
+      "minLength": 16
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "contractType": {
+            "const": "DATED_CONTRACT"
+          }
+        },
+        "required": [
+          "contractType"
+        ]
+      },
+      "then": {
+        "required": [
+          "fullContractSymbol",
+          "contractMonth",
+          "contractYear",
+          "multiplier",
+          "tickSize",
+          "tickValue",
+          "quantityStep",
+          "lastTradeDate",
+          "sessionCalendarId"
+        ]
+      }
+    }
+  ]
+}
