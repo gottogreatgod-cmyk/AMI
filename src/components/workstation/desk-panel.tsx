@@ -62,6 +62,32 @@ interface DatasetCatalogResponse {
   fetchedAt: number;
 }
 
+interface MonitorInstrumentStatus {
+  instrumentId: string;
+  state: string;
+  poller: {
+    lastError?: string | null;
+    lastSuccessAt?: number | null;
+    intervalSeconds?: number;
+  } | null;
+  snapshot: {
+    tick?: {
+      bid: number;
+      ask: number;
+      spreadBps: number | null;
+    } | null;
+    fetchedAt?: number;
+  } | null;
+}
+
+interface MonitorStatusResponse {
+  feedMode: "EXPERIMENTAL_POLLING";
+  ordersEnabled: false;
+  instruments: MonitorInstrumentStatus[];
+  fetchedAt: number;
+  note: string;
+}
+
 const DATASET_CHART_TIMEFRAME: Partial<Record<DatasetTimeframe, Timeframe>> = {
   m15: "15m",
   h1: "1h",
@@ -290,6 +316,7 @@ export function DeskPanel({
   refreshKey?: number;
 }) {
   const { data: datasetCatalog } = usePolling<DatasetCatalogResponse>("/api/market-data/datasets", 300_000);
+  const { data: monitorStatus } = usePolling<MonitorStatusResponse>("/api/market-data/monitor", 15_000);
   const [includeReviewDatasets, setIncludeReviewDatasets] = useState(false);
   const localDatasets = datasetCatalog?.datasets ?? [];
   const preset = slots.length; // layout preset is derived from the slot count
@@ -348,6 +375,29 @@ export function DeskPanel({
             </Button>
           ))}
         </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 border-b border-[#1d2c38] text-[9px] text-[#748999]">
+        <span className="text-[#e7b86d]">EXPERIMENTAL POLLING · NOT THE CHART FEED</span>
+        {(monitorStatus?.instruments ?? []).map((item) => {
+          const tick = item.snapshot?.tick;
+          const color = item.state === "FRESH"
+            ? "text-[#4bc39a]"
+            : item.state === "STALE" || item.state === "ERROR"
+              ? "text-[#ef777d]"
+              : item.state === "NOT_STARTED"
+                ? "text-[#748999]"
+                : "text-[#e7b86d]";
+          return (
+            <span key={item.instrumentId} className={cn("tnum", color)} title={item.poller?.lastError ?? undefined}>
+              {item.instrumentId} · {item.state}
+              {tick ? ` · ${fmtPrice(tick.bid, 2)} / ${fmtPrice(tick.ask, 2)} · ${tick.spreadBps?.toFixed(2) ?? "—"} bps` : ""}
+            </span>
+          );
+        })}
+        {!monitorStatus && <span>status unavailable</span>}
+        {monitorStatus?.instruments.every((item) => item.state === "NOT_STARTED") && (
+          <span>start with bun run market-data:monitor -- --instrument XAUUSD-DUKA</span>
+        )}
       </div>
       <div className={cn("grid gap-1.5 p-1.5 flex-1 min-h-0", gridClass)}>
         {slots.map((slot, i) => (
