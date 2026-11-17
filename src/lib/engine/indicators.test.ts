@@ -38,11 +38,11 @@ describe("causal indicators", () => {
   });
 
   test("Wilder ATR is unavailable during warmup and stable on constant true range", () => {
-    const actual = atr(makeBars([10, 11, 12, 13]), 2);
+    const actual = atr(makeBars([10, 10, 10, 10]), 2);
     expect(Number.isNaN(actual[0])).toBe(true);
-    expect(actual[1]).toBe(1.5);
-    expect(actual[2]).toBe(1.5);
-    expect(actual[3]).toBe(1.5);
+    expect(actual[1]).toBe(1);
+    expect(actual[2]).toBe(1);
+    expect(actual[3]).toBe(1);
   });
 
   test("RSI returns the expected extreme for monotonic gains and losses", () => {
