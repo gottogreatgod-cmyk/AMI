@@ -116,7 +116,7 @@ export interface MarketDatasetManifest {
 const EXPECTED_HEADERS = ["timestamp", "open", "high", "low", "close"] as const;
 
 function isDateOnly(value: string): boolean {
-  return /^\\d{4}-\\d{2}-\\d{2}$/.test(value) &&
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     !Number.isNaN(Date.parse(value + "T00:00:00.000Z"));
 }
 
@@ -140,7 +140,7 @@ export function parseDukascopyCsv(csv: string, options: CsvImportOptions): Parse
   if (toTs <= fromTs) throw new Error("to must be later than from (exclusive).");
   if (!Number.isFinite(options.asOfTs)) throw new Error("asOfTs must be a finite timestamp.");
 
-  const lines = csv.replace(/^\\uFEFF/, "").split(/\\r?\\n/);
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
   const nonEmpty = lines
     .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
     .filter((item) => item.line.length > 0);
@@ -284,7 +284,7 @@ export function serializeNormalizedBars(bars: ImportedBar[]): string {
   for (const bar of bars) {
     lines.push([bar.t, bar.o, bar.h, bar.l, bar.c, bar.v, bar.ct].join(","));
   }
-  return lines.join("\\n") + "\\n";
+  return lines.join("\n") + "\n";
 }
 
 export async function sha256Hex(value: string): Promise<string> {
