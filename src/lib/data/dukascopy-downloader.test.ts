@@ -44,7 +44,7 @@ describe("Dukascopy download command contract", () => {
     expect(args).toContain("-vu");
     expect(args).toContain("units");
     expect(args).toContain("--cache");
-    expect(args).toContain("--retry-on-empty");
+    expect(args).not.toContain("--retry-on-empty");
     expect(args).not.toContain("-fl");
   });
 
