@@ -140,6 +140,7 @@ describe("verified local market dataset store", () => {
       options.from,
       options.to,
       options.priceSide,
+      fixture.manifest.volume.units ?? "no-volume",
       fixture.manifest.provenance.rawSha256.slice(0, 8),
       fixture.manifest.provenance.normalizedSha256.slice(0, 12),
     ].join("-");
@@ -177,13 +178,13 @@ describe("verified local market dataset store", () => {
       .rejects.toMatchObject({ code: "QUALITY_MISMATCH" });
   });
 
-  test("rejects volume-unit metadata not present in the importer contract", async () => {
+  test("rejects unsupported volume-unit metadata at manifest validation", async () => {
     const fixture = await createFixture();
     fixture.manifest.volume.units = "lots" as never;
     await writeFile(join(fixture.directory, "manifest.json"), JSON.stringify(fixture.manifest, null, 2));
 
     await expect(loadMarketDataset(fixture.manifest.datasetId, { rootDir: fixture.root }))
-      .rejects.toMatchObject({ code: "QUALITY_MISMATCH" });
+      .rejects.toMatchObject({ code: "MANIFEST_INVALID" });
   });
 
   test("rejects volume-unit relabelling that no longer matches the revision ID", async () => {
