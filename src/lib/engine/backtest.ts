@@ -135,7 +135,8 @@ function computeSeries(bars: Bar[], cfg: StrategyConfig): Series {
   const s: Series = {
     atr: atr(bars, cfg.atrPeriod),
     emaFilter: cfg.entry.emaFilter ? ema(closes, cfg.entry.emaFilter) : null,
-    dc: cfg.entry.kind === "donchian-break" || cfg.exit.exitOnChannelMid ? donchian(bars, cfg.entry.lookback) : null,
+    // Also surfaced in live market context even when the strategy family does not trade Donchian breaks.
+    dc: donchian(bars, cfg.entry.lookback),
     bb:
       cfg.entry.kind === "rsi-extreme" || cfg.entry.kind === "bb-extreme"
         ? bollinger(closes, cfg.entry.bbPeriod ?? 20, cfg.entry.bbStd ?? 2)
