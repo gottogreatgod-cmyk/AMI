@@ -140,8 +140,7 @@ export async function executeRun(
       htfBars = res.bars;
       htfQuality = res.quality;
     } catch {
-      htfBars = null; // filter degrades closed: no HTF data → engine's htfStateAt returns permissive? No —
-      // buildHtfStates(null) → htfStateAt returns 1 (permissive). We keep honest: mark in review.
+      // The engine fails closed when a configured HTF dataset is unavailable.
     }
   }
 
@@ -281,10 +280,16 @@ export async function currentSignalState(
       ((requiredHtfWarmupBars(cfg) + 10) * TF_MS[cfg.htf.tf]) / 86_400_000
     );
     const htfDays = Math.max(days, htfWarmupDays);
-    const { bars: htfBars } = await getBars(symbol, cfg.htf.tf, { days: htfDays });
+    let htfBars: Bar[] | null = null;
+    try {
+      const result = await getBars(symbol, cfg.htf.tf, { days: htfDays });
+      htfBars = result.bars;
+    } catch {
+      htfBars = null;
+    }
     htfReady = hasHtfWarmup(htfBars, cfg, bars[i].ct);
 
-    if (htfReady) {
+    if (htfReady && htfBars) {
       const htf = buildHtfStates(htfBars, cfg);
       gate = htfStateAt(htf, bars[i].ct);
       if (cfg.htf.type === "range-neutral") {
