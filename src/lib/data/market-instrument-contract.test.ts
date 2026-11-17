@@ -29,6 +29,21 @@ describe("canonical market instrument metadata", () => {
     expect(hasVerifiedContractEconomics(gold)).toBe(false);
   });
 
+  test("NQZ6 is a dated CME futures sample, separate from CFD and continuous references", () => {
+    const nqDated = MARKET_INSTRUMENTS.NQZ6;
+    expect(nqDated.dataClass).toBe("EXCHANGE_FUTURES");
+    expect(nqDated.provider).toBe("HistoricalFuturesData");
+    expect(nqDated.providerInstrument).toBe("NQZ6");
+    expect(nqDated.quoteSide).toBe("TRADE");
+    expect(nqDated.volumeSemantics).toBe("EXCHANGE_TRADED_VOLUME");
+    expect(nqDated.contract.status).toBe("UNVERIFIED");
+    expect(nqDated.contract.pointValue).toBeNull();
+    expect(hasVerifiedContractEconomics(nqDated)).toBe(false);
+    expect(isDataClass(nqDated, "BROKER_CFD")).toBe(false);
+    expect(nqDated.id).not.toBe(MARKET_INSTRUMENTS["NAS100-DUKA"].id);
+    expect(nqDated.id).not.toBe(MARKET_INSTRUMENTS["NQ=F"].id);
+  });
+
   test("continuous futures cannot be treated as dated contracts for sizing", () => {
     expect(MARKET_INSTRUMENTS["NQ=F"].dataClass).toBe("CONTINUOUS_FUTURES");
     expect(MARKET_INSTRUMENTS["GC=F"].dataClass).toBe("CONTINUOUS_FUTURES");
