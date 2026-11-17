@@ -513,7 +513,7 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
                 "operationPolicy": {
                     "chart": "LOCAL_RESEARCH_ONLY",
                     "signalResearch": "EXPLORATORY_ONLY",
-                    "strategyBacktest": "BLOCKED_UNTIL_CONTRACT_COST_MARGIN_AND_SESSION_VERIFICATION",
+                    "strategyBacktest": "BLOCKED_UNTIL_COST_MARGIN_AND_SESSION_VERIFICATION",
                     "paperExecution": "BLOCKED",
                     "liveOrderRouting": "DISABLED",
                 },
