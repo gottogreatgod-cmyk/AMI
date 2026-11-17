@@ -131,6 +131,15 @@ The workstation backend also exposes the local catalogue to authenticated sessio
 
 The dataset endpoint validates the full files before returning any page, and it does not permit REVIEW or REJECTED data by default. It returns the downloaded quote side and recommended paired-mid method explicitly; a single bid/ask dataset is never silently labelled as mid-price.
 
+An explicitly verified dataset can also be used as the source for the existing candles API without being registered as a live instrument:
+
+~~~text
+GET /api/candles?symbol=XAUUSD-DUKA&tf=1h&datasetId=<exact-dataset-id>&limit=1000
+GET /api/candles?symbol=NAS100-DUKA&tf=15m&datasetId=<exact-dataset-id>&limit=1000
+~~~
+
+The symbol, supported timeframe and dataset ID must agree. The response includes the exact quote side and manifest hashes. The active market quote API and normal backtest provider remain unchanged; a historical dataset is not automatically a live feed or a cost-verified tradeable instrument.
+
 ## 6. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
