@@ -49,6 +49,11 @@ export interface CanonicalInstrumentMetadata {
     readonly tickSize: number | null;
     readonly quantityIncrement: number | null;
     readonly pointValue: number | null;
+    /** Contract notional multiplier per unit; never inferred from another instrument. */
+    readonly notionalMultiplier: number | null;
+    /** Exactly one verified model may be populated when margin is sourced. */
+    readonly initialMarginRate: number | null;
+    readonly initialMarginPerUnit: number | null;
     readonly expiry: string | null;
     readonly verificationSource: string | null;
   };
@@ -71,6 +76,9 @@ const unavailableContract = {
   tickSize: null,
   quantityIncrement: null,
   pointValue: null,
+  notionalMultiplier: null,
+  initialMarginRate: null,
+  initialMarginPerUnit: null,
   expiry: null,
   verificationSource: null,
 } as const;
@@ -114,7 +122,7 @@ export const MARKET_INSTRUMENTS = {
       classification: "LOCAL_RESEARCH_ONLY",
       note: "Keep provider data private unless Dukascopy/data-provider terms explicitly permit redistribution.",
     },
-    metadataVersion: 2,
+    metadataVersion: 3,
   },
   "XAUUSD-DUKA": {
     id: "XAUUSD-DUKA",
@@ -142,7 +150,7 @@ export const MARKET_INSTRUMENTS = {
       classification: "LOCAL_RESEARCH_ONLY",
       note: "OTC provider quotes are not a consolidated exchange tape; verify redistribution terms before sharing data.",
     },
-    metadataVersion: 2,
+    metadataVersion: 3,
   },
   NQ: {
     id: "NQ",
@@ -170,7 +178,7 @@ export const MARKET_INSTRUMENTS = {
       classification: "SUBJECT_TO_PROVIDER_TERMS",
       note: "No full free official intraday history is assumed; use only provenance-verified sample/reference data.",
     },
-    metadataVersion: 2,
+    metadataVersion: 3,
   },
   "NQ=F": {
     id: "NQ=F",
@@ -198,7 +206,7 @@ export const MARKET_INSTRUMENTS = {
       classification: "PUBLIC_REFERENCE_ONLY",
       note: "Not a dated tradable contract; record provider/roll methodology and respect source terms.",
     },
-    metadataVersion: 2,
+    metadataVersion: 3,
   },
   "GC=F": {
     id: "GC=F",
@@ -226,7 +234,7 @@ export const MARKET_INSTRUMENTS = {
       classification: "PUBLIC_REFERENCE_ONLY",
       note: "Not spot XAU/USD and not a dated tradable contract; record roll methodology and respect source terms.",
     },
-    metadataVersion: 2,
+    metadataVersion: 3,
   },
   PAXGUSDT: {
     id: "PAXGUSDT",
@@ -250,6 +258,9 @@ export const MARKET_INSTRUMENTS = {
       tickSize: null,
       quantityIncrement: null,
       pointValue: null,
+      notionalMultiplier: null,
+      initialMarginRate: null,
+      initialMarginPerUnit: null,
       expiry: null,
       verificationSource: null,
     },
@@ -258,7 +269,7 @@ export const MARKET_INSTRUMENTS = {
       classification: "SUBJECT_TO_PROVIDER_TERMS",
       note: "A gold-backed crypto token; not OTC XAU/USD spot or COMEX GC futures.",
     },
-    metadataVersion: 2,
+    metadataVersion: 3,
   },
 } as const satisfies Record<string, CanonicalInstrumentMetadata>;
 
