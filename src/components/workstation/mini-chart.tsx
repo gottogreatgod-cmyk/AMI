@@ -135,8 +135,12 @@ export function MiniChart({
     }
     // notify the data effect after the chart exists (deferred — keeps the
     // effect body free of synchronous setState)
-    queueMicrotask(() => setReady(true));
+    let active = true;
+    queueMicrotask(() => {
+      if (active) setReady(true);
+    });
     return () => {
+      active = false;
       ro?.disconnect();
       fallbackCleanup?.();
       chart.remove();
@@ -193,7 +197,7 @@ export function MiniChart({
   }, [bars, markers, ready]);
 
   return (
-    <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"}>
+    <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"} style={height ? { height } : undefined}>
       <div ref={containerRef} className="absolute inset-0" />
       {bars.length === 0 && (
         <div className="absolute inset-0 grid place-items-center text-[10px] text-[#687e90] pointer-events-none">
