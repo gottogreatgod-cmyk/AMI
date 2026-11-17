@@ -6,6 +6,10 @@ import {
   buildPreviousAvailableUtcDateLevels,
   buildStructureMarkers,
 } from "@/lib/engine/market-structure";
+import {
+  buildDisplacementZones,
+  type DisplacementZone,
+} from "@/lib/engine/displacement-zones";
 import { usePolling, fmtPrice } from "./hooks";
 import type { Bar, DataQuality, Timeframe } from "@/lib/engine/types";
 import {
@@ -154,6 +158,7 @@ function ChartCard({
   const selectedDatasetId = slot.datasetId ?? "provider";
   const [showStructure, setShowStructure] = useState(false);
   const [showPriorUtcDate, setShowPriorUtcDate] = useState(false);
+  const [showDisplacementZones, setShowDisplacementZones] = useState(false);
   const selectableDatasets = useMemo(
     () => datasets.filter((dataset) =>
       (dataset.qualityStatus === "PASS" || (includeReview && dataset.qualityStatus === "REVIEW")) &&
@@ -199,6 +204,16 @@ function ChartCard({
   const priorUtcDateLabel = priorUtcDateLevels
     ? new Date(priorUtcDateLevels.sourceDayStartTs).toISOString().slice(0, 10)
     : null;
+  const displacementZones = useMemo(() => {
+    if (!showDisplacementZones) return [];
+    const allZones = buildDisplacementZones(visibleBars);
+    const active = allZones.filter((zone) => zone.status !== "INVALIDATED");
+    const latestDemand = active.filter((zone) => zone.direction === "DEMAND").at(-1);
+    const latestSupply = active.filter((zone) => zone.direction === "SUPPLY").at(-1);
+    return [latestDemand, latestSupply].filter(
+      (zone): zone is DisplacementZone => zone !== undefined
+    );
+  }, [showDisplacementZones, visibleBars]);
 
   return (
     <article
@@ -216,6 +231,19 @@ function ChartCard({
           </span>
         </button>
         <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowDisplacementZones((value) => !value)}
+            aria-pressed={showDisplacementZones}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              showDisplacementZones ? "text-[#4baf91] bg-[#123025]" : "text-[#8193a3]"
+            )}
+            title="ATR-normalized base plus closed-bar displacement heuristic; not institutional order-flow data"
+          >
+            ZONES {showDisplacementZones ? "ON" : "OFF"}
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -308,6 +336,7 @@ function ChartCard({
           bars={visibleBars}
           markers={structureMarkers}
           priorUtcDateLevels={priorUtcDateLevels}
+          displacementZones={displacementZones}
           decimals={chartDecimals}
           chartId={`${chartSymbol}-${chartTf}-${selectedDataset?.datasetId ?? "provider"}`}
         />
@@ -322,7 +351,8 @@ function ChartCard({
             : q?.datasetId
               ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars" +
                 (data?.dataset?.operationPolicy?.strategyBacktest.allowed ? " · BACKTEST ELIGIBLE" : " · CHART ONLY") +
-                (showPriorUtcDate ? " · PRIOR UTC " + (priorUtcDateLabel ?? "N/A") : "")
+                (showPriorUtcDate ? " · PRIOR UTC " + (priorUtcDateLabel ?? "N/A") : "") +
+                (showDisplacementZones ? " · ZONES " + displacementZones.map((zone) => zone.direction[0] + ":" + zone.status).join(" / ") : "")
               : q
               ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
               : loading
