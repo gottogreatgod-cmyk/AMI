@@ -102,6 +102,30 @@ describe("POST /api/risk/calculate", () => {
     expect(body.result.reasons).toContain("INITIAL_MARGIN_REQUIREMENT_UNVERIFIED");
   });
 
+  test("NQZ6 returns NO_TRADE until dated-contract costs and margin are verified", async () => {
+    const response = await POST(makeRequest(validBody({
+      instrumentId: "NQZ6",
+      quotes: {
+        entry: { bid: 27342.25, ask: 27342.5 },
+        stop: { bid: 27330.0, ask: 27330.25 },
+        target: { bid: 27370.0, ask: 27370.25 },
+      },
+    })));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.instrument).toMatchObject({
+      id: "NQZ6",
+      dataClass: "EXCHANGE_FUTURES",
+      pnlCurrency: "USD",
+      quoteCurrency: "USD",
+    });
+    expect(body.result.status).toBe("NO_TRADE");
+    expect(body.result.reasons).toContain("EXECUTION_COSTS_UNVERIFIED");
+    expect(body.result.reasons).toContain("INITIAL_MARGIN_REQUIREMENT_UNVERIFIED");
+    expect(body.result.reasons).not.toContain("CONTRACT_ECONOMICS_UNVERIFIED");
+  });
+
   test("returns 404 for unknown canonical instruments without using a fallback", async () => {
     const response = await POST(makeRequest(validBody({ instrumentId: "NAS100" })));
     expect(response.status).toBe(404);
