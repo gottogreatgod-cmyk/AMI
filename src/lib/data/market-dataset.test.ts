@@ -150,6 +150,8 @@ describe("market dataset provenance", () => {
     expect(first.provenance.normalizedSha256).toBe(second.provenance.normalizedSha256);
     expect(first.instrument.dataClass).toBe("OTC_SPOT_METAL");
     expect(first.pricing.downloadedSide).toBe("bid");
+    expect(first.pricing.datasetPriceSide).toBe("bid");
+    expect(first.pricing.recommendedAnalysisMethod).toBe("PAIRED_MID");
     expect(first.volume.semantics).toBe("PROVIDER_REPORTED");
     expect(first.quality.gapPolicy).toBe("REPORT_ONLY_NO_SYNTHETIC_BARS");
   });
