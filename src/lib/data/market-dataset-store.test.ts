@@ -48,10 +48,10 @@ async function createFixture(args: {
   tempRoots.push(root);
   let rawSource = args.source ?? sourceCsv;
   if (!args.source && args.quality === "REVIEW") {
-    rawSource += "\\n" + (timestamp0 + HOUR) + ",2051,2053,2050,2052,125";
+    rawSource += "\n" + (timestamp0 + HOUR) + ",2051,2053,2050,2052,125";
   }
   if (!args.source && args.quality === "REJECTED") {
-    rawSource += "\\n" + (timestamp0 + 2 * HOUR) + ",2050,2040,2049,2051,10";
+    rawSource += "\n" + (timestamp0 + 2 * HOUR) + ",2050,2040,2049,2051,10";
   }
   const parsed = parseDukascopyCsv(rawSource, options);
   const normalized = args.normalized ?? serializeNormalizedBars(parsed.bars);
