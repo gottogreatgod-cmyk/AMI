@@ -205,6 +205,35 @@ function entrySignalAt(bars: Bar[], i: number, cfg: StrategyConfig, s: Series): 
   return 0;
 }
 
+
+/** Canonical entry-rule evaluation used by both backtests and live signals. */
+export function evaluateClosedBar(
+  bars: Bar[],
+  index: number,
+  cfg: StrategyConfig
+): {
+  signal: 0 | 1 | -1;
+  atr: number;
+  rsi: number | null;
+  donchianUpper: number | null;
+  donchianLower: number | null;
+} {
+  if (index < 0 || index >= bars.length) {
+    return { signal: 0, atr: Number.NaN, rsi: null, donchianUpper: null, donchianLower: null };
+  }
+  const series = computeSeries(bars, cfg);
+  const rsiValue = series.rsi?.[index];
+  const upper = series.dc?.upper[index];
+  const lower = series.dc?.lower[index];
+  return {
+    signal: entrySignalAt(bars, index, cfg, series),
+    atr: series.atr[index],
+    rsi: rsiValue != null && Number.isFinite(rsiValue) ? rsiValue : null,
+    donchianUpper: upper != null && Number.isFinite(upper) ? upper : null,
+    donchianLower: lower != null && Number.isFinite(lower) ? lower : null,
+  };
+}
+
 /** Signal-based exit at bar close i (for an open position with direction dir). */
 function signalExitAt(bars: Bar[], i: number, dir: 1 | -1, cfg: StrategyConfig, s: Series): boolean {
   const c = bars[i].c;
@@ -275,7 +304,14 @@ export function runBacktest(
     warmup,
     insufficientData: n < warmup + 30,
   };
-  if (diagnostics.insufficientData) {
+  const htfReady =
+    !cfg.htf ||
+    (!diagnostics.insufficientData &&
+      hasHtfWarmup(htfBars, cfg, bars[warmup]?.ct ?? Number.NEGATIVE_INFINITY));
+  if (diagnostics.insufficientData || !htfReady) {
+    // A configured HTF gate is mandatory: missing or late history must never
+    // silently become a permissive filter.
+    diagnostics.insufficientData = true;
     return { trades: [], equityCurve: [{ t: bars[0]?.t ?? Date.now(), eq: startingEquity }], diagnostics };
   }
 
