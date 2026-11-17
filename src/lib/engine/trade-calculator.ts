@@ -1,13 +1,23 @@
 export interface InstrumentRiskEconomics {
   instrumentId: string;
   dataClass: string;
+  currencyConversion: {
+    status: "VERIFIED" | "UNVERIFIED";
+    accountCurrency: string;
+    pnlCurrency: string;
+    quoteCurrency: string;
+    /** Account-currency units per one P&L-currency unit. */
+    pnlToAccountRate: number | null;
+    /** Account-currency units per one quote/notional-currency unit. */
+    quoteToAccountRate: number | null;
+  };
   contract: {
     status: "VERIFIED" | "UNVERIFIED";
     tickSize: number | null;
     quantityIncrement: number | null;
-    /** Account-currency P&L for a 1.0 price move per 1 quantity unit. */
+    /** P&L-currency value for a 1.0 price move per 1 quantity unit. */
     pnlCurrencyPerPointPerUnit: number | null;
-    /** Notional currency multiplier per price unit and quantity unit. */
+    /** Quote-currency notional multiplier per price unit and quantity unit. */
     notionalMultiplier: number | null;
   };
   costs: {
@@ -50,6 +60,7 @@ export interface NoTradeResult {
 export interface SizedTradeResult {
   status: "SIZED";
   instrumentId: string;
+  accountCurrency: string;
   direction: "long" | "short";
   quantity: number;
   riskBudget: number;
@@ -96,8 +107,10 @@ function floorToIncrement(value: number, increment: number): number {
 
 /**
  * Contract-aware sizing calculator. It never invents a multiplier, tick/lot
- * size, fee or slippage assumption. Prices must already be side-aware
- * executable estimates; a mid-price-only input is explicitly rejected.
+ * size, fee, slippage or currency conversion. P&L and quote/notional currency
+ * values are converted to the account currency only with verified FX rates.
+ * Prices must be side-aware executable bid/ask quotes; midpoint-only input
+ * cannot be represented by this contract.
  *
  * SIZED means a theoretical paper/research quantity has been calculated. It
  * does not place an order and does not certify that a strategy has an edge.
@@ -112,6 +125,31 @@ export function calculateTradeSize(
   if (!economics.instrumentId.trim()) reasons.push("INSTRUMENT_ID_MISSING");
   if (economics.contract.status !== "VERIFIED") {
     reasons.push("CONTRACT_ECONOMICS_UNVERIFIED");
+  }
+  const currency = economics.currencyConversion;
+  if (
+    !currency.accountCurrency.trim() ||
+    !currency.pnlCurrency.trim() ||
+    !currency.quoteCurrency.trim()
+  ) {
+    reasons.push("CURRENCY_CODES_MISSING");
+  }
+  if (currency.status !== "VERIFIED") {
+    reasons.push("CURRENCY_CONVERSION_UNVERIFIED");
+  }
+  const pnlFx = currency.pnlToAccountRate;
+  const quoteFx = currency.quoteToAccountRate;
+  if (
+    pnlFx === null || !Number.isFinite(pnlFx) || pnlFx <= 0 ||
+    quoteFx === null || !Number.isFinite(quoteFx) || quoteFx <= 0
+  ) {
+    reasons.push("CURRENCY_CONVERSION_RATES_MISSING_OR_INVALID");
+  }
+  if (
+    (currency.accountCurrency === currency.pnlCurrency && pnlFx !== null && Math.abs(pnlFx - 1) > 1e-10) ||
+    (currency.accountCurrency === currency.quoteCurrency && quoteFx !== null && Math.abs(quoteFx - 1) > 1e-10)
+  ) {
+    reasons.push("SAME_CURRENCY_CONVERSION_RATE_MUST_EQUAL_ONE");
   }
   if (economics.costs.status !== "VERIFIED") {
     reasons.push("EXECUTION_COSTS_UNVERIFIED");
@@ -181,8 +219,10 @@ export function calculateTradeSize(
   // valid path only through runtime validation; retain local numeric guards.
   const tick = tickSize as number;
   const quantityStep = quantityIncrement as number;
-  const pointValue = pnlCurrencyPerPointPerUnit as number;
+  const pointValue = (pnlCurrencyPerPointPerUnit as number) *
+    (economics.currencyConversion.pnlToAccountRate as number);
   const multiplier = notionalMultiplier as number;
+  const quoteToAccountRate = economics.currencyConversion.quoteToAccountRate as number;
   const costBps = (commissionBpsPerSide as number) + (slippageBpsPerSide as number);
   const verifiedMarginRate = hasMarginRate ? marginRate as number : null;
   const verifiedMarginPerUnit = hasMarginPerUnit ? marginPerUnit as number : null;
@@ -208,9 +248,9 @@ export function calculateTradeSize(
 
   const grossLossPerUnit = Math.abs(entry - stop) * pointValue;
   const grossRewardPerUnit = Math.abs(target - entry) * pointValue;
-  const entryCostPerUnit = entry * multiplier * costBps / 10_000;
-  const stopCostPerUnit = stop * multiplier * costBps / 10_000;
-  const targetCostPerUnit = target * multiplier * costBps / 10_000;
+  const entryCostPerUnit = entry * multiplier * quoteToAccountRate * costBps / 10_000;
+  const stopCostPerUnit = stop * multiplier * quoteToAccountRate * costBps / 10_000;
+  const targetCostPerUnit = target * multiplier * quoteToAccountRate * costBps / 10_000;
   const worstCaseStopLossPerUnit = grossLossPerUnit + entryCostPerUnit + stopCostPerUnit;
   const netTargetProfitPerUnit = grossRewardPerUnit - entryCostPerUnit - targetCostPerUnit;
 
@@ -230,7 +270,7 @@ export function calculateTradeSize(
 
   const riskBudget = input.accountEquity * input.riskPercent / 100;
   const rawRiskQuantity = riskBudget / worstCaseStopLossPerUnit;
-  const notionalPerUnit = entry * multiplier;
+  const notionalPerUnit = entry * multiplier * quoteToAccountRate;
   const maxQuantityByLeverage = input.accountEquity * input.maxLeverage / notionalPerUnit;
   const marginPerQuantityUnit = verifiedMarginRate !== null
     ? notionalPerUnit * verifiedMarginRate
@@ -269,6 +309,7 @@ export function calculateTradeSize(
   return {
     status: "SIZED",
     instrumentId,
+    accountCurrency: currency.accountCurrency,
     direction: input.direction,
     quantity,
     riskBudget,
@@ -284,7 +325,7 @@ export function calculateTradeSize(
     effectiveRiskPercent: estimatedWorstCaseStopLoss / input.accountEquity * 100,
     executionPriceBasis: "SIDE_AWARE_EXECUTABLE",
     assumptions: [
-      "Instrument contract economics, execution costs and initial margin were supplied with VERIFIED status.",
+      "Instrument contract economics, execution costs, initial margin and P&L/notional-to-account currency conversion were supplied with VERIFIED status.",
       input.direction === "long"
         ? "Long entry uses entry ASK; stop and target exits use their respective BID quotes."
         : "Short entry uses entry BID; stop and target exits use their respective ASK quotes.",
