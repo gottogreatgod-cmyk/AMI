@@ -245,6 +245,19 @@ Safety ordering is deterministic: expiry first, invalidation next, trigger after
 
 This is an engine component only. Automatic candidate generation from live signals/zones, database persistence, multi-worker deduplication, UI/API surfacing and paper OMS handoff are still pending. The reducer does not calculate probability, quantity, P&L or actual execution price.
 
+## 9.1 Durable opportunity storage and authenticated API
+
+The pure lifecycle reducer is persisted through the existing `Opportunity` and `OpportunityEvent` Prisma models. `src/lib/engine/opportunity-store.ts` is the single persistence implementation; it is user-scoped and stores one immutable candidate per user/idempotency key.
+
+- Candidate create and its initial `CREATED` event are written atomically.
+- Reusing the same key with identical setup terms returns the existing record. Reusing it with different prices, direction, strategy, expiry, dataset or evidence content returns a conflict.
+- Every event has a monotonically increasing sequence number per opportunity.
+- Closed-bar updates use optimistic version checks. A new closed bar updates the last-processed timestamp even when it does not change status; exact same-close and terminal-state replays do not increment the version or append events.
+- `GET /api/opportunities` returns only the signed-in user's opportunities and event histories.
+- `POST /api/opportunities` accepts a manually evidenced candidate. The server generates creation/evidence timestamps, checks the canonical instrument, validates strategy ownership and optional dataset eligibility, and does not accept client-supplied lifecycle status, bars, events, quantities, fills or order state.
+
+There is no public endpoint for client-submitted market observations. The pure storage function that applies a closed bar is intended for a trusted server-side market worker, which is not yet implemented. Automated candidate generation from the live signal/structure/zone engine, notifications, browser UI and paper OMS handoff remain pending. No order, position, fill or P&L state is created by this API.
+
 ## 10. Contract-verified trade sizing (initial FTC-410 slice)
 
 The pure calculator in `src/lib/engine/trade-calculator.ts` requires:
