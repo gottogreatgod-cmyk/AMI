@@ -78,7 +78,7 @@
     {
       "id": "FTC-000",
       "name": "Stabilize existing P0 repair",
-      "status": "source_repair_and_CI_baseline_green; final clean-checkout validation pending",
+      "status": "source repair, fail-closed HTF handling, clean lint/typecheck/engine CI path verified; manual browser sign-off pending",
       "dependsOn": [],
       "deliverables": [
         "clean install",
@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "CI green with lint, strict typecheck, engine and market-data tests, importer CLI and downloader-help smoke tests, and production build; API/browser/security gates pending",
+      "status": "GitHub Actions green through importer/downloader/catalogue smoke tests and production build; route-level integration, browser, accessibility and security tests pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -115,7 +115,7 @@
     {
       "id": "FTC-100",
       "name": "Canonical instrument metadata v2",
-      "status": "initial_metadata_contract_committed; active_registry_migration_and_contract_verification_pending",
+      "status": "canonical metadata v2 and class-separation tests committed; active market-registry migration and instrument economics verification pending",
       "dependsOn": [
         "FTC-010"
       ],
@@ -134,7 +134,7 @@
     {
       "id": "FTC-110",
       "name": "Dukascopy XAUUSD historical importer",
-      "status": "Pinned Dukascopy XAUUSD downloader and bid/ask importer implemented; real sample download and coverage audit pending",
+      "status": "pinned Dukascopy XAUUSD bid/ask downloader and importer committed; real download and session/coverage audit pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -152,7 +152,7 @@
     {
       "id": "FTC-120",
       "name": "Dukascopy USATECH history importer",
-      "status": "Pinned Dukascopy USATECH CFD downloader and bid/ask importer implemented; real sample download and coverage audit pending",
+      "status": "pinned Dukascopy USATECH CFD bid/ask downloader and importer committed; real download and session/coverage audit pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -170,7 +170,7 @@
     {
       "id": "FTC-130",
       "name": "Dataset versioning and quality CLI",
-      "status": "SHA-256 manifests, UTC normalization, duplicate/gap/invalid-row checks and local importer committed; dataset catalog, resumable job state and engine adapter pending",
+      "status": "hash-bound versioned datasets, source replay, quality verification, catalogue CLI/API and explicit chart source selector committed; resumable imports, real-data audit and engine research adapter pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -238,7 +238,7 @@
     {
       "id": "FTC-300",
       "name": "Live multi-chart desk",
-      "status": "not_started",
+      "status": "chart desk now supports explicit hash-verified local historical revisions; real-time streaming, forming candles, overlays and reconnect continuity remain pending",
       "dependsOn": [
         "FTC-210"
       ],
@@ -456,23 +456,31 @@
   "implementationSnapshot": {
     "date": "2026-11-17",
     "completedInBranch": [
-      "PR source repairs for chart polling and live/backtest signal parity",
-      "GitHub Actions dependency install, Prisma generation, lint, strict typecheck, Bun tests and production build",
-      "Deterministic tests for indicators, causal resampling, HTF fail-closed behavior and next-open fills",
-      "Versioned instrument metadata distinguishing CFD, OTC spot, dated futures, continuous futures and tokenized metal",
-      "Offline Dukascopy CSV normalizer with source and normalized SHA-256 hashes, UTC timestamps, duplicate/gap diagnostics and no synthetic bars",
-      "Pinned dukascopy-node 1.51.1 downloader orchestrator: sequential bid/ask requests, local cache, conservative batch pacing, retries and immediate CSV normalization"
+      "P0 chart polling/refresh and chart-series lifecycle repairs",
+      "Canonical live/backtest signal evaluator and higher-timeframe fail-closed behavior",
+      "GitHub Actions with frozen dependency installation, Prisma generation, lint, strict typecheck, Bun tests, offline market-data CLI smoke tests and production build",
+      "Deterministic tests for indicators, causal resampling, next-open fills, HTF gating, market identity, source normalization, dataset hashes and tamper detection",
+      "Canonical instrument metadata separating broker CFD, OTC spot metal, exchange futures, continuous futures and tokenized gold",
+      "Pinned Dukascopy 1.51.1 download orchestrator for XAUUSD and USATECH CFD with bid/ask isolation, conservative pacing, retry controls, local cache and explicit handling of normal empty sessions",
+      "UTC CSV importer with SHA-256 raw/normalized hashes, immutable dataset revisions, OHLC validation, duplicate/gap diagnostics and no synthetic bars",
+      "Dataset catalog and explicit loader that replays the original CSV, recreates normalized bars and checks data-class identity, quote side, volume metadata, quality labels and dataset hashes",
+      "Authenticated dataset catalogue and paginated verified-bar APIs",
+      "Chart-panel selector for explicit PASS-labelled local historical revisions; exact dataset response identity is required before bars are displayed"
     ],
     "notYetCompleted": [
-      "No real market-data archive has been downloaded/imported and independently coverage-audited yet",
-      "Dukascopy data is not wired into active getBars/chart/backtest adapters",
-      "No realtime adapter or guaranteed streaming path is enabled",
-      "No order sizing is enabled for unverified contract economics",
-      "Browser/API integration tests and paper-forward certification remain pending"
+      "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
+      "New XAUUSD-DUKA and NAS100-DUKA datasets are not in the active tradable instrument registry",
+      "Strategy/backtest runner does not yet consume these new local datasets; they are currently selectable in charts only",
+      "Contract point values, quantity increments, spread/commission/financing and session schedules remain unverified for the two new instruments",
+      "No production real-time stream or guaranteed persistent WebSocket feed is enabled",
+      "API route-level and browser automation, provider freshness/reconnect validation and security scanning remain pending",
+      "Walk-forward/locked holdout research, paper OMS and forward certification remain pending"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
       "unverifiedContractSizingEnabled": false,
+      "historicalDatasetBacktestEnabled": false,
+      "reviewDatasetsEnabledByDefault": false,
       "syntheticGapFillingEnabled": false
     }
   }
