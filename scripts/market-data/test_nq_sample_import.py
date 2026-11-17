@@ -85,21 +85,15 @@ class NqSampleImportTests(unittest.TestCase):
                     compare_derived_to_reference(derived, [changed])
 
     def test_parses_sha256sum_entries_and_rejects_unsafe_paths(self):
-        parsed = parse_sha256sums(
-            b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  NQZ6_ticks.parquet\n"
-        )
-        self.assertEqual(
-            parsed["NQZ6_ticks.parquet"],
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        )
-        nested = parse_sha256sums(
-            b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  pack/NQZ6_ticks.parquet\\n"
-        )
+        digest = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        parsed = parse_sha256sums(digest + b"  NQZ6_ticks.parquet\n")
+        self.assertEqual(parsed["NQZ6_ticks.parquet"], digest.decode("ascii"))
+
+        nested = parse_sha256sums(digest + b"  pack/NQZ6_ticks.parquet\n")
         self.assertEqual(nested["NQZ6_ticks.parquet"], parsed["NQZ6_ticks.parquet"])
+
         with self.assertRaisesRegex(ImportErrorDetail, "Unsafe"):
-            parse_sha256sums(
-                b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  ../outside.parquet\n"
-            )
+            parse_sha256sums(digest + b"  ../outside.parquet\n")
 
 
 if __name__ == "__main__":
