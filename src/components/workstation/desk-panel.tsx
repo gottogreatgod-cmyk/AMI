@@ -39,11 +39,51 @@ function daysForTf(tf: Timeframe): number {
   }
 }
 
+type DatasetTimeframe = "m1" | "m5" | "m15" | "m30" | "h1" | "h4" | "d1";
+
+interface LocalDatasetOption {
+  datasetId: string;
+  instrumentId: string;
+  displayName: string;
+  dataClass: string;
+  timeframe: DatasetTimeframe;
+  priceSide: "bid" | "ask";
+  qualityStatus: "PASS" | "REVIEW" | "REJECTED";
+  rows: number;
+  fromTs: number | null;
+  toTs: number | null;
+  importedAt: string;
+}
+
+interface DatasetCatalogResponse {
+  datasets: LocalDatasetOption[];
+  skipped: Array<{ directoryName: string; reason: string }>;
+  fetchedAt: number;
+}
+
+const DATASET_CHART_TIMEFRAME: Partial<Record<DatasetTimeframe, Timeframe>> = {
+  m15: "15m",
+  h1: "1h",
+  h4: "4h",
+  d1: "1d",
+};
+
 interface CandlesResponse {
   symbol: string;
   tf: Timeframe;
   bars: Bar[];
-  quality: DataQuality;
+  quality: DataQuality & {
+    datasetId?: string;
+    priceSide?: "bid" | "ask";
+    qualityStatus?: "PASS" | "REVIEW" | "REJECTED";
+  };
+  dataset?: {
+    datasetId: string;
+    dataClass: string;
+    recommendedAnalysisMethod: string;
+    rawSha256: string;
+    normalizedSha256: string;
+  };
 }
 
 function ChartCard({
@@ -55,9 +95,11 @@ function ChartCard({
   onTfChange,
   priceDecimals,
   refreshKey,
+  datasets,
 }: {
   slot: ChartSlot;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
+  datasets: LocalDatasetOption[];
   onFocus: () => void;
   isFocused: boolean;
   onSymbolChange: (symbol: string) => void;
@@ -65,13 +107,33 @@ function ChartCard({
   priceDecimals: number;
   refreshKey: number;
 }) {
-  const { data, error, loading } = usePolling<CandlesResponse>(
-    `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`,
-    60_000,
-    refreshKey
+  const [selectedDatasetId, setSelectedDatasetId] = useState("provider");
+  const selectableDatasets = useMemo(
+    () => datasets.filter((dataset) =>
+      dataset.qualityStatus === "PASS" &&
+      DATASET_CHART_TIMEFRAME[dataset.timeframe] === slot.tf
+    ),
+    [datasets, slot.tf]
   );
-  const last = data?.bars?.[data.bars.length - 1];
-  const q = data?.quality;
+  const selectedDataset = selectableDatasets.find((dataset) => dataset.datasetId === selectedDatasetId);
+  const chartSymbol = selectedDataset?.instrumentId ?? slot.symbol;
+  const chartTf = selectedDataset
+    ? DATASET_CHART_TIMEFRAME[selectedDataset.timeframe] ?? slot.tf
+    : slot.tf;
+  const candlesUrl = selectedDataset
+    ? `/api/candles?symbol=${encodeURIComponent(chartSymbol)}&tf=${chartTf}&datasetId=${encodeURIComponent(selectedDataset.datasetId)}&limit=600`
+    : `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`;
+  const { data, error, loading } = usePolling<CandlesResponse>(candlesUrl, 60_000, refreshKey);
+  const dataMatchesSelection = Boolean(
+    data &&
+    data.symbol === chartSymbol &&
+    data.tf === chartTf &&
+    (!selectedDataset || data.dataset?.datasetId === selectedDataset.datasetId)
+  );
+  const visibleBars = dataMatchesSelection ? data?.bars ?? [] : [];
+  const last = visibleBars[visibleBars.length - 1];
+  const q = dataMatchesSelection ? data?.quality : undefined;
+  const chartDecimals = selectedDataset ? 2 : priceDecimals;
 
   return (
     <article
@@ -79,16 +141,37 @@ function ChartCard({
         "flex flex-col min-h-0 min-w-0 rounded-lg border overflow-hidden bg-gradient-to-b from-[#101d28] to-[#0d1720]",
         isFocused ? "border-[#668db9] shadow-[inset_0_0_0_1px_#668db933]" : "border-[#20323f]"
       )}
-      aria-label={`Chart ${slot.symbol} ${slot.tf}`}
+      aria-label={`Chart ${chartSymbol} ${chartTf}`}
     >
       <div className="flex items-center justify-between gap-2 px-2.5 pt-2 pb-1.5">
-        <button onClick={onFocus} className="flex items-baseline gap-2 min-w-0 text-left">
-          <strong className="text-[12px] truncate">{slot.symbol}</strong>
-          <span className="text-[9px] text-[#8193a3] truncate hidden sm:inline">{q?.providerSymbol ?? ""}</span>
+        <button onClick={onFocus} disabled={Boolean(selectedDataset)} className="flex items-baseline gap-2 min-w-0 text-left disabled:cursor-default">
+          <strong className="text-[12px] truncate">{chartSymbol}</strong>
+          <span className="text-[9px] text-[#8193a3] truncate hidden sm:inline">
+            {selectedDataset ? "LOCAL · " + selectedDataset.dataClass : q?.providerSymbol ?? ""}
+          </span>
         </button>
         <div className="flex items-center gap-1.5">
-          <Select value={slot.symbol} onValueChange={onSymbolChange}>
-            <SelectTrigger className="h-6 w-[104px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
+          <Select
+            value={selectedDataset?.datasetId ?? "provider"}
+            onValueChange={setSelectedDatasetId}
+          >
+            <SelectTrigger className="h-6 w-[138px] bg-[#0a121a] border-[#34506a] text-[10px] px-2">
+              <SelectValue placeholder="Provider feed" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#0e1720] border-[#223546] text-[11px] max-h-72">
+              <SelectItem value="provider" className="text-[11px]">Provider feed</SelectItem>
+              {selectableDatasets.map((dataset) => (
+                <SelectItem key={dataset.datasetId} value={dataset.datasetId} className="text-[10px]">
+                  {dataset.instrumentId} · {dataset.timeframe} · {dataset.priceSide.toUpperCase()} · {dataset.rows} bars
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={slot.symbol} onValueChange={(symbol) => {
+            setSelectedDatasetId("provider");
+            onSymbolChange(symbol);
+          }}>
+            <SelectTrigger disabled={Boolean(selectedDataset)} className="h-6 w-[104px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#0e1720] border-[#223546] text-[11px] max-h-72">
@@ -99,8 +182,11 @@ function ChartCard({
               ))}
             </SelectContent>
           </Select>
-          <Select value={slot.tf} onValueChange={(v) => onTfChange(v as Timeframe)}>
-            <SelectTrigger className="h-6 w-[62px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
+          <Select value={slot.tf} onValueChange={(v) => {
+            setSelectedDatasetId("provider");
+            onTfChange(v as Timeframe);
+          }}>
+            <SelectTrigger disabled={Boolean(selectedDataset)} className="h-6 w-[62px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#0e1720] border-[#223546] text-[11px]">
@@ -124,20 +210,26 @@ function ChartCard({
             </span>
           </>
         )}
-        {loading && !data && <span>loading…</span>}
+        {loading && !dataMatchesSelection && <span>loading…</span>}
       </div>
       <div className="flex-1 min-h-0 px-1 pb-1">
-        <MiniChart bars={data?.bars ?? []} decimals={priceDecimals} chartId={`${slot.symbol}-${slot.tf}`} />
+        <MiniChart
+          bars={visibleBars}
+          decimals={chartDecimals}
+          chartId={`${chartSymbol}-${chartTf}-${selectedDataset?.datasetId ?? "provider"}`}
+        />
       </div>
       <div className="h-[20px] border-t border-[#1d2c38] flex items-center justify-between px-2 text-[8.5px] text-[#748999]">
         <span className="truncate" title={error ?? q?.note ?? undefined}>
           {error
-            ? (data ? "STALE · " : "ERROR · ") + error
-            : q
-              ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
-              : loading
-                ? "FETCHING CLOSED BARS…"
-                : "WAITING FOR PROVIDER"}
+            ? (dataMatchesSelection ? "STALE · " : "ERROR · ") + error
+            : q?.datasetId
+              ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars"
+              : q
+                ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
+                : loading
+                  ? "FETCHING CLOSED BARS…"
+                  : selectedDataset ? "WAITING FOR DATASET" : "WAITING FOR PROVIDER"}
         </span>
         <span
           className={cn(
@@ -147,7 +239,7 @@ function ChartCard({
             (q?.coverage === "PROVIDER_LIMIT" || q?.coverage === "INSUFFICIENT") && "text-[#e7b86d]"
           )}
         >
-          {q ? `${q.coverage} · ${q.coveredDays}d` : ""}
+          {q?.datasetId ? "HASH VERIFIED" : q ? `${q.coverage} · ${q.coveredDays}d` : ""}
         </span>
       </div>
     </article>
@@ -169,6 +261,8 @@ export function DeskPanel({
   onFocus: (symbol: string) => void;
   refreshKey?: number;
 }) {
+  const { data: datasetCatalog } = usePolling<DatasetCatalogResponse>("/api/market-data/datasets", 300_000);
+  const localDatasets = datasetCatalog?.datasets ?? [];
   const preset = slots.length; // layout preset is derived from the slot count
   const decimalsOf = (symbol: string) => symbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
   const gridClass =
@@ -189,7 +283,9 @@ export function DeskPanel({
       <div className="panel-head">
         <div className="flex items-center gap-2">
           <span>CHART CANVAS</span>
-          <span className="text-[9px] font-normal text-[#687e90]">closed bars · independent panels</span>
+          <span className="text-[9px] font-normal text-[#687e90]">
+            closed bars · independent panels · {localDatasets.filter((dataset) => dataset.qualityStatus === "PASS").length} verified-ready local revisions
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <LayoutGrid className="w-3 h-3 text-[#687e90]" aria-hidden />
@@ -232,6 +328,7 @@ export function DeskPanel({
             }}
             priceDecimals={decimalsOf(slot.symbol)}
             refreshKey={refreshKey}
+            datasets={localDatasets}
           />
         ))}
       </div>
