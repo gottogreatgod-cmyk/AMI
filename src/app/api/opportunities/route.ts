@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireSession, serverError } from "@/lib/api";
+import { requireSession } from "@/lib/api";
 import { getInstrument } from "@/lib/data/instruments";
 import { getMarketInstrumentMetadata } from "@/lib/data/market-instrument-contract";
 import { DatasetStoreError, loadMarketDataset } from "@/lib/data/market-dataset-store";
@@ -94,8 +94,8 @@ export async function GET(req: NextRequest) {
       count: opportunities.length,
       limit,
     });
-  } catch (error) {
-    return serverError(error);
+  } catch {
+    return NextResponse.json({ error: "OPPORTUNITY_LIST_FAILED" }, { status: 500 });
   }
 }
 
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
           message: error.message,
         }, { status: error.code === "DATASET_NOT_FOUND" ? 404 : 422 });
       }
-      return serverError(error);
+      return NextResponse.json({ error: "DATASET_VERIFICATION_FAILED" }, { status: 500 });
     }
   }
 
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
         note: "Opportunity lifecycle only; no order, fill, position or P&L is created.",
       },
     }, { status: result.created ? 201 : 200 });
-  } catch (error) {
-    return serverError(error);
+  } catch {
+    return NextResponse.json({ error: "OPPORTUNITY_CREATE_FAILED" }, { status: 500 });
   }
 }
