@@ -101,12 +101,15 @@ function parseManifest(raw: string, directory: string): MarketDatasetManifest {
   const range = value.requestedRange;
   const actual = value.actualCoverage;
   const provenance = value.provenance;
+  const volume = value.volume;
   const quality = value.quality;
 
   if (
     !isRecord(instrument) ||
     typeof instrument.id !== "string" ||
     typeof instrument.displayName !== "string" ||
+    typeof instrument.metadataVersion !== "number" ||
+    !Number.isInteger(instrument.metadataVersion) ||
     typeof instrument.dataClass !== "string" ||
     instrument.provider !== "Dukascopy" ||
     typeof instrument.providerInstrument !== "string" ||
@@ -122,6 +125,10 @@ function parseManifest(raw: string, directory: string): MarketDatasetManifest {
     typeof actual.rows !== "number" ||
     (actual.fromTs !== null && typeof actual.fromTs !== "number") ||
     (actual.toTs !== null && typeof actual.toTs !== "number") ||
+    !isRecord(volume) ||
+    typeof volume.present !== "boolean" ||
+    (volume.units !== null && !["millions", "thousands", "units"].includes(String(volume.units))) ||
+    (volume.semantics !== "PROVIDER_REPORTED" && volume.semantics !== "UNAVAILABLE") ||
     !isRecord(provenance) ||
     typeof provenance.rawSha256 !== "string" ||
     typeof provenance.normalizedSha256 !== "string" ||
@@ -195,6 +202,7 @@ function assertManifestIdentity(
     !metadata ||
     manifest.datasetId !== expectedDatasetId ||
     manifest.instrument.id !== expectedInstrumentId ||
+    manifest.instrument.metadataVersion !== metadata.metadataVersion ||
     manifest.instrument.dataClass !== metadata.dataClass ||
     manifest.instrument.provider !== metadata.provider ||
     manifest.instrument.providerInstrument !== metadata.providerInstrument ||
@@ -358,6 +366,7 @@ export async function loadMarketDataset(
     manifest.requestedRange.from,
     manifest.requestedRange.toExclusive,
     manifest.pricing.downloadedSide,
+    manifest.volume.units ?? "no-volume",
     rawHash.slice(0, 8),
     normalizedHash.slice(0, 12),
   ].join("-");
