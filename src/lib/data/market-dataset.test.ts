@@ -32,7 +32,7 @@ describe("Dukascopy CSV normalization", () => {
     const result = parseDukascopyCsv(validCsv, defaultOptions);
     expect(result.bars).toHaveLength(3);
     expect(result.bars[0].t).toBe(Date.parse("2024-01-01T00:00:00.000Z"));
-    expect(result.bars[0].ct).toBe(HOUR - 1);
+    expect(result.bars[0].ct).toBe(Date.parse("2024-01-01T01:00:00.000Z") - 1);
     expect(result.bars[2].v).toBe(130);
     expect(result.volumeAvailable).toBe(true);
     expect(result.diagnostics.qualityStatus).toBe("PASS");
