@@ -32,7 +32,7 @@ export interface CanonicalInstrumentMetadata {
   readonly displayName: string;
   readonly assetClass: "index" | "futures" | "metals" | "crypto";
   readonly dataClass: MarketDataClass;
-  readonly provider: "Dukascopy" | "Yahoo Finance" | "CME" | "Binance" | null;
+  readonly provider: "Dukascopy" | "Yahoo Finance" | "CME" | "Binance" | "HistoricalFuturesData" | null;
   readonly providerInstrument: string | null;
   readonly providerReadiness: ProviderReadiness;
   readonly quoteCurrency: "USD" | "USDT";
@@ -182,6 +182,35 @@ export const MARKET_INSTRUMENTS = {
     dataUse: {
       classification: "SUBJECT_TO_PROVIDER_TERMS",
       note: "No full free official intraday history is assumed; use only provenance-verified sample/reference data.",
+    },
+    metadataVersion: 3,
+  },
+  NQZ6: {
+    id: "NQZ6",
+    displayName: "CME E-mini Nasdaq-100 dated futures · Dec 2026 sample",
+    assetClass: "futures",
+    dataClass: "EXCHANGE_FUTURES",
+    provider: "HistoricalFuturesData",
+    providerInstrument: "NQZ6",
+    providerReadiness: "HISTORICAL_CANDIDATE",
+    quoteCurrency: "USD",
+    pnlCurrency: "USD",
+    quoteSide: "TRADE",
+    analysisPriceSide: "LAST",
+    volumeSemantics: "EXCHANGE_TRADED_VOLUME",
+    session: {
+      calendar: "CME equity index futures calendar",
+      timezone: "America/Chicago",
+      hoursVerified: false,
+    },
+    contract: unavailableContract,
+    costs: {
+      ...unverifiedCosts,
+      note: "Free one-day evaluation sample only; dated-contract costs, fees, margin and execution conditions remain unverified.",
+    },
+    dataUse: {
+      classification: "LOCAL_RESEARCH_ONLY",
+      note: "Historical Futures Data sample pack is restricted to private/internal evaluation, research and backtesting; redistribution, resale, commercial use and shared access are not included.",
     },
     metadataVersion: 3,
   },
