@@ -131,6 +131,7 @@ export function MiniChart({
       ro.observe(el);
     } else {
       window.addEventListener("resize", onWindowResize);
+      fallbackCleanup = () => window.removeEventListener("resize", onWindowResize);
     }
     // notify the data effect after the chart exists (deferred — keeps the
     // effect body free of synchronous setState)
