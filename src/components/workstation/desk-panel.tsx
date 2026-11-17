@@ -113,6 +113,13 @@ interface CandlesResponse {
     recommendedAnalysisMethod: string;
     rawSha256: string;
     normalizedSha256: string;
+    operationPolicy?: {
+      chart: { allowed: boolean; reasons: string[] };
+      signalResearch: { allowed: boolean; reasons: string[] };
+      strategyBacktest: { allowed: boolean; reasons: string[] };
+      paperExecution: { allowed: boolean; reasons: string[] };
+      liveOrderRouting: { allowed: boolean; reasons: string[] };
+    };
   };
 }
 
@@ -281,11 +288,15 @@ function ChartCard({
         />
       </div>
       <div className="h-[20px] border-t border-[#1d2c38] flex items-center justify-between px-2 text-[8.5px] text-[#748999]">
-        <span className="truncate" title={error ?? q?.note ?? undefined}>
+        <span
+          className="truncate"
+          title={error ?? data?.dataset?.operationPolicy?.strategyBacktest.reasons.join(" ") ?? q?.note ?? undefined}
+        >
           {error
             ? (dataMatchesSelection ? "STALE · " : "ERROR · ") + error
             : q?.datasetId
-              ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars"
+              ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars" +
+                (data?.dataset?.operationPolicy?.strategyBacktest.allowed ? " · BACKTEST ELIGIBLE" : " · CHART ONLY")
               : q
               ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
               : loading
