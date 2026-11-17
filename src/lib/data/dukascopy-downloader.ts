@@ -97,7 +97,6 @@ export function buildDukascopyDownloadArgs(
     "--request-interval", String(options.requestIntervalMs),
     "--rate-limit-retries", String(options.rateLimitRetries),
     "--retries", String(options.retries),
-    "--retry-on-empty",
   ];
 
   if (options.includeFlats) args.push("-fl");
