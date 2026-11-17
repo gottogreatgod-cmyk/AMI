@@ -168,7 +168,9 @@ function ChartCard({
     data &&
     data.symbol === chartSymbol &&
     data.tf === chartTf &&
-    (!selectedDataset || data.dataset?.datasetId === selectedDataset.datasetId)
+    (selectedDataset
+      ? data.dataset?.datasetId === selectedDataset.datasetId
+      : data.dataset === undefined)
   );
   const visibleBars = dataMatchesSelection ? data?.bars ?? [] : [];
   const last = visibleBars[visibleBars.length - 1];
