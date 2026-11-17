@@ -119,7 +119,7 @@ The dataset ID is printed by the import command; copy it exactly rather than rec
 bun run market-data:inspect -- verify <dataset-id> --allow-review
 ~~~
 
-A REJECTED revision can never be loaded, even with that option. Verification checks the original source SHA-256, normalized CSV SHA-256, canonical provider and instrument class, quote side, time interval, row count, strictly increasing timestamps, close timestamps, UTC range, and OHLC/volume integrity. The catalogue reports manifest metadata, not a verified status; verification happens when a specific revision is loaded.
+A REJECTED revision can never be loaded, even with that option. Verification checks the original source SHA-256, normalized CSV SHA-256, canonical provider and instrument class, quote side, time interval, row count, strictly increasing timestamps, close timestamps, UTC range, and OHLC/volume integrity. The catalogue reports manifest metadata, not a verified status; verification happens when a specific revision is loaded. The chart desk includes PASS-labelled revisions by default. Its REVIEW switch is off initially; turn it on only when you intend to inspect a revision with duplicates or unclassified gaps. The explicit selection sends allowReview=true to the candles endpoint, but the loader still verifies hashes, source replay, OHLC, timestamps and quality metadata.
 
 ## 5. Authenticated API
 
@@ -128,6 +128,7 @@ The workstation backend also exposes the local catalogue to authenticated sessio
 - GET /api/market-data/datasets — list local revisions and their quality labels.
 - GET /api/market-data/datasets/{datasetId}?limit=1000 — verify one exact revision and return the newest page of bars.
 - GET /api/market-data/datasets/{datasetId}?limit=1000&beforeTs={epoch_ms} — return the preceding page; use the response page.nextBeforeTs as the next exclusive cursor.
+- GET /api/candles?symbol=XAUUSD-DUKA&tf=1h&datasetId={id}&allowReview=true — chart an explicitly selected REVIEW revision. Omit allowReview for the default PASS-only policy.
 
 The dataset endpoint validates the full files before returning any page, and it does not permit REVIEW or REJECTED data by default. It returns the downloaded quote side and recommended paired-mid method explicitly; a single bid/ask dataset is never silently labelled as mid-price.
 
