@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -129,15 +129,27 @@ describe("verified local market dataset store", () => {
       .rejects.toMatchObject({ code: "NORMALIZED_HASH_MISMATCH" });
   });
 
-  test("rejects corrupt normalized values even when their hash is updated", async () => {
+  test("rejects corrupt normalized values even when its hash and dataset revision are updated", async () => {
     const fixture = await createFixture();
     const corrupt = fixture.normalized.replace("2052", "2040");
     const { sha256Hex } = await import("./market-dataset");
     fixture.manifest.provenance.normalizedSha256 = await sha256Hex(corrupt);
-    await writeFile(join(fixture.directory, "normalized.csv"), corrupt);
-    await writeFile(join(fixture.directory, "manifest.json"), JSON.stringify(fixture.manifest, null, 2));
+    const newDatasetId = [
+      options.instrumentId.toLowerCase(),
+      options.timeframe,
+      options.from,
+      options.to,
+      options.priceSide,
+      fixture.manifest.provenance.rawSha256.slice(0, 8),
+      fixture.manifest.provenance.normalizedSha256.slice(0, 12),
+    ].join("-");
+    const newDirectory = join(fixture.root, "xauusd-duka", "h1", newDatasetId);
+    await rename(fixture.directory, newDirectory);
+    fixture.manifest.datasetId = newDatasetId;
+    await writeFile(join(newDirectory, "normalized.csv"), corrupt);
+    await writeFile(join(newDirectory, "manifest.json"), JSON.stringify(fixture.manifest, null, 2));
 
-    await expect(loadMarketDataset(fixture.manifest.datasetId, { rootDir: fixture.root }))
+    await expect(loadMarketDataset(newDatasetId, { rootDir: fixture.root }))
       .rejects.toMatchObject({ code: "BAR_INVALID" });
   });
 
