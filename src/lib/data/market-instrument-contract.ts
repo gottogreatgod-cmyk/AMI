@@ -99,7 +99,7 @@ export const MARKET_INSTRUMENTS = {
     quoteCurrency: "USD",
     quoteSide: "BID_ASK",
     analysisPriceSide: "MID",
-    volumeSemantics: "TICK_COUNT",
+    volumeSemantics: "PROVIDER_REPORTED",
     session: {
       calendar: "Dukascopy CFD provider calendar",
       timezone: "UTC",
@@ -127,7 +127,7 @@ export const MARKET_INSTRUMENTS = {
     quoteCurrency: "USD",
     quoteSide: "BID_ASK",
     analysisPriceSide: "MID",
-    volumeSemantics: "TICK_COUNT",
+    volumeSemantics: "PROVIDER_REPORTED",
     session: {
       calendar: "Dukascopy OTC metals calendar",
       timezone: "UTC",
