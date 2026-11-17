@@ -148,13 +148,23 @@ export function MiniChart({
       active = false;
       ro?.disconnect();
       fallbackCleanup?.();
+      // Remove chart-owned price lines before destroying the chart API. The
+      // dedicated overlay effect also removes them on updates; this guard
+      // makes teardown order safe during unmount or fast panel switching.
+      for (const line of priorDateLinesRef.current) {
+        try {
+          candle.removePriceLine(line);
+        } catch {
+          // The chart may already be in teardown; never block chart cleanup.
+        }
+      }
+      priorDateLinesRef.current = [];
       chart.remove();
       hasFitContentRef.current = false;
       chartRef.current = null;
       candleRef.current = null;
       volumeRef.current = null;
       markersRef.current = null;
-      priorDateLinesRef.current = [];
     };
   }, []);
 
