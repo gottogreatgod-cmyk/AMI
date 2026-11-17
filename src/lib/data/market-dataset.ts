@@ -74,7 +74,8 @@ export interface MarketDatasetManifest {
   };
   pricing: {
     downloadedSide: DukascopyPriceSide;
-    analysisPriceSide: "MID" | "LAST" | "TRADE";
+    datasetPriceSide: DukascopyPriceSide;
+    recommendedAnalysisMethod: "PAIRED_MID" | "LAST" | "TRADE";
     quoteCurrency: string;
   };
   volume: {
@@ -317,6 +318,7 @@ export async function createMarketDatasetManifest(args: {
     args.options.from,
     args.options.to,
     args.options.priceSide,
+    rawSha256.slice(0, 8),
     normalizedSha256.slice(0, 12),
   ].join("-");
 
@@ -338,7 +340,8 @@ export async function createMarketDatasetManifest(args: {
     },
     pricing: {
       downloadedSide: args.options.priceSide,
-      analysisPriceSide: metadata.analysisPriceSide,
+      datasetPriceSide: args.options.priceSide,
+      recommendedAnalysisMethod: metadata.analysisPriceSide === "MID" ? "PAIRED_MID" : metadata.analysisPriceSide,
       quoteCurrency: metadata.quoteCurrency,
     },
     volume: {
