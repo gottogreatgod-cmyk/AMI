@@ -48,6 +48,7 @@ export function buildStructureMarkers(
   for (let index = 0; index < bars.length; index++) {
     const bar = bars[index];
     if (![bar.t, bar.h, bar.l, bar.c].every(Number.isFinite)) continue;
+    const previousClose = index > 0 ? bars[index - 1].c : bar.c;
 
     const pivotIndex = index - rightBars;
     if (pivotIndex >= leftBars) {
@@ -69,14 +70,12 @@ export function buildStructureMarkers(
       }
 
       if (isSwingHigh) {
-        lastHigh = { price: pivot.h, broken: bar.c > pivot.h };
+        lastHigh = { price: pivot.h, broken: previousClose > pivot.h };
       }
       if (isSwingLow) {
-        lastLow = { price: pivot.l, broken: bar.c < pivot.l };
+        lastLow = { price: pivot.l, broken: previousClose < pivot.l };
       }
     }
-
-    const previousClose = index > 0 ? bars[index - 1].c : bar.c;
 
     if (
       lastHigh &&
