@@ -10,6 +10,14 @@ import {
 const verifiedSyntheticEconomics: InstrumentRiskEconomics = {
   instrumentId: "SYNTHETIC-TEST-CONTRACT",
   dataClass: "EXCHANGE_FUTURES",
+  currencyConversion: {
+    status: "VERIFIED",
+    accountCurrency: "USD",
+    pnlCurrency: "USD",
+    quoteCurrency: "USD",
+    pnlToAccountRate: 1,
+    quoteToAccountRate: 1,
+  },
   contract: {
     status: "VERIFIED",
     tickSize: 0.25,
@@ -47,6 +55,61 @@ const defaultInput: TradeSizingInput = {
 };
 
 describe("verified contract trade calculator", () => {
+  test("returns NO_TRADE when currency conversion is not independently verified", () => {
+    const economics = {
+      ...verifiedSyntheticEconomics,
+      currencyConversion: {
+        ...verifiedSyntheticEconomics.currencyConversion,
+        status: "UNVERIFIED" as const,
+      },
+    };
+    const result = calculateTradeSize(economics, defaultInput);
+    expect(result.status).toBe("NO_TRADE");
+    if (result.status === "NO_TRADE") {
+      expect(result.reasons).toContain("CURRENCY_CONVERSION_UNVERIFIED");
+    }
+  });
+
+  test("rejects a non-unit conversion rate when account and settlement currencies match", () => {
+    const economics = {
+      ...verifiedSyntheticEconomics,
+      currencyConversion: {
+        ...verifiedSyntheticEconomics.currencyConversion,
+        pnlToAccountRate: 1.1,
+      },
+    };
+    const result = calculateTradeSize(economics, defaultInput);
+    expect(result.status).toBe("NO_TRADE");
+    if (result.status === "NO_TRADE") {
+      expect(result.reasons).toContain("SAME_CURRENCY_CONVERSION_RATE_MUST_EQUAL_ONE");
+    }
+  });
+
+  test("converts P&L, costs, notional and margin into the account currency", () => {
+    const crossCurrency: InstrumentRiskEconomics = {
+      ...verifiedSyntheticEconomics,
+      currencyConversion: {
+        status: "VERIFIED",
+        accountCurrency: "EUR",
+        pnlCurrency: "USD",
+        quoteCurrency: "USD",
+        pnlToAccountRate: 0.9,
+        quoteToAccountRate: 0.9,
+      },
+    };
+    const result = calculateTradeSize(crossCurrency, defaultInput);
+    expect(result.status).toBe("SIZED");
+    if (result.status !== "SIZED") return;
+
+    expect(result.accountCurrency).toBe("EUR");
+    expect(result.riskBudget).toBe(60);
+    expect(result.estimatedWorstCaseStopLoss).toBeCloseTo(45.26325, 8);
+    expect(result.estimatedNetTargetProfit).toBeCloseTo(89.7165, 8);
+    expect(result.estimatedNotional).toBeCloseTo(900, 8);
+    expect(result.estimatedInitialMargin).toBeCloseTo(90, 8);
+    expect(result.estimatedLeverage).toBeCloseTo(0.09, 8);
+  });
+
   test("returns NO_TRADE for current unverified contract economics", () => {
     const economics = {
       ...verifiedSyntheticEconomics,
