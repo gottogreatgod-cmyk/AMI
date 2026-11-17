@@ -374,7 +374,14 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
                 minute_volume_name: minute_volume_raw,
             }
             for filename, raw in source_bytes.items():
-                expected = next(item["sha256"] for item in files if item["name"] == filename)
+                metadata = next((item for item in files if item.get("name") == filename), None)
+                if metadata is None:
+                    raise ImportErrorDetail("Sample manifest entry disappeared for source file: " + filename)
+                expected = metadata.get("sha256")
+                if not isinstance(expected, str) or len(expected) != 64:
+                    raise ImportErrorDetail("Sample manifest has an invalid SHA-256 for " + filename)
+                if "bytes" in metadata and int(metadata["bytes"]) != len(raw):
+                    raise ImportErrorDetail("Source file byte size differs from sample manifest: " + filename)
                 if sha256_bytes(raw) != expected.lower() or sha256_bytes(raw) != checksums[filename]:
                     raise ImportErrorDetail("SHA-256 mismatch for source file: " + filename)
 
@@ -537,10 +544,14 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 raise
             return destination, manifest
+    except ImportErrorDetail:
+        raise
     except zipfile.BadZipFile as exc:
         raise ImportErrorDetail("Input file is not a valid ZIP sample pack.") from exc
     except json.JSONDecodeError as exc:
         raise ImportErrorDetail("Sample pack manifest JSON is malformed.") from exc
+    except (KeyError, TypeError, ValueError, AttributeError, OverflowError) as exc:
+        raise ImportErrorDetail("Sample pack manifest or file metadata is malformed: " + str(exc)) from exc
 
 
 def build_parser():
