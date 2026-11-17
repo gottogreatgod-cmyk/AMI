@@ -266,6 +266,15 @@ export async function applyPersistentOpportunityObservation(
 
     const current = toSnapshot(row);
     const next = evaluateOpportunity(current, observation);
+    if (next === current) {
+      return {
+        created: false,
+        conflict: false,
+        opportunityId: row.id,
+        version: row.version,
+        snapshot: current,
+      };
+    }
     const newEvents = next.events.slice(current.events.length);
 
     // Persist each newer closed-bar watermark even when no visible transition
