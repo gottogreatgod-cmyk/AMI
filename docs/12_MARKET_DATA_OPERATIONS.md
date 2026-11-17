@@ -195,7 +195,24 @@ Demand bounds use the base low wick and highest base body price. Supply bounds u
 
 These are **displacement-origin heuristics**, not direct evidence of institutional orders, resting liquidity or order-book imbalance. The overlay is visual research only; it does not create opportunities, change strategy signals, or authorize orders. The definitions and thresholds are versioned in `src/lib/engine/displacement-zones.ts` and covered by deterministic tests for confirmation, retest, invalidation, gaps and future-data stability.
 
-## 9. Keep the research chain reproducible
+## 9. Opportunity lifecycle engine (initial FTC-400 slice)
+
+The pure reducer in `src/lib/engine/opportunity-lifecycle.ts` accepts an explicit candidate with timestamped evidence and closed-bar observations. It emits one of:
+
+- `WATCH`
+- `NEAR_TRIGGER`
+- `TRIGGERED`
+- `INVALIDATED`
+- `EXPIRED`
+- `SUPPRESSED`
+
+Each state change appends an event with source timestamps and a reason. Market freshness, dataset eligibility, signal policy and higher-timeframe gates can suppress evaluation; when gates recover, the prior non-terminal state is resumed and the next newer closed bar is evaluated. Duplicate/out-of-order bars are ignored.
+
+Safety ordering is deterministic: expiry first, invalidation next, trigger after that, then near-trigger/watch. If a single candle crosses both invalidation and trigger, invalidation wins. `TRIGGERED` means a closed bar touched the candidate trigger; it does **not** mean a fill occurred.
+
+This is an engine component only. Automatic candidate generation from live signals/zones, database persistence, multi-worker deduplication, UI/API surfacing and paper OMS handoff are still pending. The reducer does not calculate probability, quantity, P&L or actual execution price.
+
+## 10. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
