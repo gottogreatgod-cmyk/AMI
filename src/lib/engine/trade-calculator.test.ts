@@ -22,6 +22,11 @@ const verifiedSyntheticEconomics: InstrumentRiskEconomics = {
     commissionBpsPerSide: 1,
     slippageBpsPerSide: 0.5,
   },
+  margin: {
+    status: "VERIFIED",
+    initialMarginRate: 0.1,
+    initialMarginPerUnit: null,
+  },
 };
 
 const defaultInput: TradeSizingInput = {
@@ -81,8 +86,15 @@ describe("verified contract trade calculator", () => {
     const result = calculateTradeSize(verifiedSyntheticEconomics, {
       ...defaultInput,
       riskPercent: 5,
-      availableMargin: 200,
+      availableMargin: 2_000,
       maxLeverage: 1,
+    }, {
+      ...verifiedSyntheticEconomics,
+      margin: {
+        status: "VERIFIED",
+        initialMarginRate: 1,
+        initialMarginPerUnit: null,
+      },
     });
     expect(result.status).toBe("SIZED");
     if (result.status === "SIZED") {
@@ -142,6 +154,36 @@ describe("verified contract trade calculator", () => {
     expect(result.status).toBe("NO_TRADE");
     if (result.status === "NO_TRADE") {
       expect(result.reasons).toContain("MINIMUM_QUANTITY_EXCEEDS_RISK_BUDGET_OR_MARGIN_CAP");
+    }
+  });
+
+  test("returns NO_TRADE if initial margin requirements are unverified or ambiguous", () => {
+    const unverified = {
+      ...verifiedSyntheticEconomics,
+      margin: {
+        status: "UNVERIFIED" as const,
+        initialMarginRate: null,
+        initialMarginPerUnit: null,
+      },
+    };
+    const ambiguous = {
+      ...verifiedSyntheticEconomics,
+      margin: {
+        status: "VERIFIED" as const,
+        initialMarginRate: 0.1,
+        initialMarginPerUnit: 100,
+      },
+    };
+
+    const blocked = calculateTradeSize(unverified, defaultInput);
+    const ambiguousResult = calculateTradeSize(ambiguous, defaultInput);
+    expect(blocked.status).toBe("NO_TRADE");
+    expect(ambiguousResult.status).toBe("NO_TRADE");
+    if (blocked.status === "NO_TRADE") {
+      expect(blocked.reasons).toContain("INITIAL_MARGIN_REQUIREMENT_UNVERIFIED");
+    }
+    if (ambiguousResult.status === "NO_TRADE") {
+      expect(ambiguousResult.reasons).toContain("INITIAL_MARGIN_MODEL_MISSING_OR_AMBIGUOUS");
     }
   });
 
