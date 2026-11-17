@@ -1,0 +1,54 @@
+name: AMI validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - "ami/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ami-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, typecheck, tests, production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: "file:./ami-ci.db"
+      NEXTAUTH_SECRET: "ami-ci-only-secret-not-for-production"
+      NEXTAUTH_URL: "http://localhost:3000"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.4"
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bun run db:generate
+
+      - name: Lint
+        run: bun run lint
+
+      - name: TypeScript validation
+        run: bun run typecheck
+
+      - name: Deterministic unit and engine tests
+        run: bun test
+
+      - name: Production build
+        run: bun run build
