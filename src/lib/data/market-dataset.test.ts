@@ -123,6 +123,7 @@ describe("Dukascopy CSV normalization", () => {
   test("rejects malformed date ranges and malformed candle headers", () => {
     expect(() => parseDukascopyCsv(validCsv, { ...defaultOptions, from: "01/01/2024" })).toThrow();
     expect(() => parseDukascopyCsv(validCsv, { ...defaultOptions, to: "2023-12-31" })).toThrow();
+    expect(() => parseDukascopyCsv(validCsv, { ...defaultOptions, from: "2024-02-31" })).toThrow();
     expect(() => parseDukascopyCsv("timestamp,bid,ask", defaultOptions)).toThrow();
   });
 });
@@ -154,6 +155,33 @@ describe("market dataset provenance", () => {
     expect(first.pricing.recommendedAnalysisMethod).toBe("PAIRED_MID");
     expect(first.volume.semantics).toBe("PROVIDER_REPORTED");
     expect(first.quality.gapPolicy).toBe("REPORT_ONLY_NO_SYNTHETIC_BARS");
+  });
+
+ 
+  test("different raw source bytes create a different immutable dataset revision", async () => {
+    const parsed = parseDukascopyCsv(validCsv, defaultOptions);
+    const normalizedCsv = serializeNormalizedBars(parsed.bars);
+    const first = await createMarketDatasetManifest({
+      options: defaultOptions,
+      parsed,
+      sourceFileName: "original.csv",
+      rawCsv: validCsv,
+      normalizedCsv,
+      importedAt: "2024-01-03T00:00:00.000Z",
+    });
+    const rawWithCrlf = validCsv.replace(/\n/g, "\r\n");
+    const second = await createMarketDatasetManifest({
+      options: defaultOptions,
+      parsed,
+      sourceFileName: "line-endings-changed.csv",
+      rawCsv: rawWithCrlf,
+      normalizedCsv,
+      importedAt: "2024-01-03T00:00:00.000Z",
+    });
+
+    expect(first.provenance.normalizedSha256).toBe(second.provenance.normalizedSha256);
+    expect(first.provenance.rawSha256).not.toBe(second.provenance.rawSha256);
+    expect(first.datasetId).not.toBe(second.datasetId);
   });
 
   test("preserves the Nasdaq-style CFD identity in its manifest", async () => {
