@@ -99,7 +99,39 @@ A dataset with invalid rows is marked REJECTED and the command exits non-zero. D
 
 Gap counts are deliberately labelled unclassified: weekends, maintenance breaks, holidays and provider omissions need instrument-specific calendars before a gap can be judged abnormal. The importer never fills gaps or invents synthetic bars. Provider-reported volume is preserved as metadata and must not be called consolidated exchange volume.
 
-## 4. Keep the research chain reproducible
+## 4. Catalogue and verify revisions
+
+List local revisions without reading all candle files:
+
+~~~bash
+bun run market-data:inspect -- list
+~~~
+
+Verify one exact revision before using it:
+
+~~~bash
+bun run market-data:inspect -- verify xauusd-duka-h1-2024-01-01-2024-02-01-bid-<hashes>
+~~~
+
+The dataset ID is printed by the import command; copy it exactly rather than reconstructing it. A REVIEW revision is blocked by default. Exploratory verification requires an explicit opt-in:
+
+~~~bash
+bun run market-data:inspect -- verify <dataset-id> --allow-review
+~~~
+
+A REJECTED revision can never be loaded, even with that option. Verification checks the original source SHA-256, normalized CSV SHA-256, canonical provider and instrument class, quote side, time interval, row count, strictly increasing timestamps, close timestamps, UTC range, and OHLC/volume integrity. The catalogue reports manifest metadata, not a verified status; verification happens when a specific revision is loaded.
+
+## 5. Authenticated API
+
+The workstation backend also exposes the local catalogue to authenticated sessions:
+
+- GET /api/market-data/datasets — list local revisions and their quality labels.
+- GET /api/market-data/datasets/{datasetId}?limit=1000 — verify one exact revision and return the newest page of bars.
+- GET /api/market-data/datasets/{datasetId}?limit=1000&beforeTs={epoch_ms} — return the preceding page; use the response page.nextBeforeTs as the next exclusive cursor.
+
+The dataset endpoint validates the full files before returning any page, and it does not permit REVIEW or REJECTED data by default. It returns the downloaded quote side and recommended paired-mid method explicitly; a single bid/ask dataset is never silently labelled as mid-price.
+
+## 6. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
