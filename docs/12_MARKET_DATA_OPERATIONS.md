@@ -10,6 +10,7 @@ Supported primary identities:
 |---|---|---|---|
 | XAUUSD-DUKA | xauusd | OTC_SPOT_METAL | Dukascopy XAU/USD spot quote history |
 | NAS100-DUKA | usatechidxusd | BROKER_CFD | Dukascopy USA 100 Technical Index CFD; not NQ futures |
+| NQZ6 | NQZ6 | EXCHANGE_FUTURES | One-day CME E-mini Nasdaq-100 dated-contract tick sample; not full history and not NAS100 CFD |
 
 Never feed these datasets into a calculator that assumes CME NQ/GC contract values. The import manifest keeps the provider instrument and data class attached to every dataset.
 
@@ -43,6 +44,34 @@ The documented CLI uses UTC epoch-millisecond candle timestamps. The end date is
 
 
 The CSV format is `timestamp,open,high,low,close,volume`. Timestamps are UTC epoch milliseconds at the candle's start; the requested end date is exclusive. Repeat the command with `-p ask` to get the ask-side file. The importer keeps bid and ask as separate datasets; it never fabricates a midpoint from one side.
+
+## 1.2 Limited free NQ dated-contract sample (FTC-140)
+
+A separate importer is provided for the free Historical Futures Data NQ sample pack. It is intentionally isolated from the Dukascopy CSV importer and from the normal chart dataset catalogue.
+
+The pinned sample pack is:
+
+- Archive: `es-nq-tick-sample-2026-11-09.zip`
+- Contract identity in the sample manifest: `NQZ6` (CME E-mini Nasdaq-100, December 2026 dated contract)
+- UTC window: 2026-11-09 00:00 inclusive to 2026-11-10 00:00 exclusive
+- NQ tick records: 710,815; contracts traded: 766,017
+- Published one-minute reference rows: 1,380
+
+The importer reconstructs one-minute OHLCV and trade counts from the dated NQZ6 tick records, then compares the result with the published one-minute bars. Those published bars are documented as continuous-series output; they are a reconciliation reference only and are never relabelled as a dated-contract source. Exact matching is a property of this sample window, not a general guarantee about all continuous-series data.
+
+Install the Parquet reader in your Python environment and download the official pack:
+
+~~~bash
+python3 -m pip install pyarrow
+curl -LO https://historicalfuturesdata.com/samples/pack/es-nq-tick-sample-2026-11-09.zip
+python3 scripts/market-data/nq_sample_import.py \\
+  --archive es-nq-tick-sample-2026-11-09.zip \\
+  --contract NQZ6
+~~~
+
+The importer pins the publisher's official ZIP SHA-256 (`0393ec579d453d016b5a838392349a0e6f21f3ddd211f3e7c24bb5c8cb63fc72`) and checks the internal file hashes, source tick ordering/schema, contract/exchange identity, tick totals, minute-bar equality and volume/trade-count reconciliation. It does not synthesize empty minute bars. The immutable output is stored separately under `data/market-data/futures-samples/nqz6/1m/`; it is not accepted by the Dukascopy-only `market-dataset-store` or the backtest engine.
+
+The sample is a one-day evaluation pack, not full NQ history. It contains historical trades and derived minute bars, not BBO updates, resting depth or a real-time feed. Its use terms are restricted to private/internal evaluation, research and backtesting; redistribution, resale, sharing the data or cleaned derivatives, commercial use and shared-account access are not included. Read the source terms before using or sharing any output.
 
 ## 2. Normalize and fingerprint the CSV
 
