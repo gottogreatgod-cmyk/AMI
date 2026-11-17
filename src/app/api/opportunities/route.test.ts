@@ -123,11 +123,11 @@ describe("/api/opportunities", () => {
 
     expect(response.status).toBe(201);
     expect(body.outcome).toBe("CREATED");
-    expect(body.opportunity.snapshot.status).toBe("WATCH");
-    expect(body.opportunity.snapshot.events[0].type).toBe("CREATED");
-    expect(body.opportunity.snapshot.candidate.evidence[0].source).toBe("manual");
-    expect(body.opportunity.snapshot.candidate.createdAtTs).toBeGreaterThanOrEqual(before);
-    expect(body.opportunity.snapshot.candidate.evidence[0].observedAtTs).toBeGreaterThanOrEqual(before);
+    expect(body.opportunity.status).toBe("WATCH");
+    expect(body.opportunity.events[0].type).toBe("CREATED");
+    expect(body.opportunity.candidate.evidence[0].source).toBe("manual");
+    expect(body.opportunity.candidate.createdAtTs).toBeGreaterThanOrEqual(before);
+    expect(body.opportunity.candidate.evidence[0].observedAtTs).toBeGreaterThanOrEqual(before);
     expect(body.execution).toMatchObject({
       enabled: false,
       orderSubmitted: false,
