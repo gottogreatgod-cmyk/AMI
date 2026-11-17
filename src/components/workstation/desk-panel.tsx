@@ -19,6 +19,27 @@ import { cn } from "@/lib/utils";
 export interface ChartSlot {
   symbol: string;
   tf: Timeframe;
+  /** Exact immutable local dataset revision; absent means the normal provider feed. */
+  datasetId?: string;
+}
+
+interface DatasetCatalogEntry {
+  datasetId: string;
+  instrumentId: string;
+  displayName: string;
+  dataClass: string;
+  timeframe: string;
+  priceSide: "bid" | "ask";
+  qualityStatus: "PASS" | "REVIEW" | "REJECTED";
+  rows: number;
+  fromTs: number | null;
+  toTs: number | null;
+  importedAt: string;
+}
+
+interface DatasetCatalogResponse {
+  datasets: DatasetCatalogEntry[];
+  skipped: Array<{ directoryName: string; reason: string }>;
 }
 
 const TFS: Timeframe[] = ["15m", "45m", "1h", "3h", "4h", "1d", "1w"];
@@ -135,6 +156,8 @@ function ChartCard({
   onTfChange: (tf: Timeframe) => void;
   priceDecimals: number;
   refreshKey: number;
+  datasets: DatasetCatalogEntry[];
+  onDatasetChange: (datasetId: string | null) => void;
 }) {
   const [selectedDatasetId, setSelectedDatasetId] = useState("provider");
   const [showStructure, setShowStructure] = useState(false);
@@ -280,7 +303,9 @@ function ChartCard({
             : q?.datasetId
               ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars"
               : q
-                ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
+                ? q.datasetId
+              ? "LOCAL HISTORY · " + (q.priceSide ?? "—").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars"
+              : q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
                 : loading
                   ? "FETCHING CLOSED BARS…"
                   : selectedDataset ? "WAITING FOR DATASET" : "WAITING FOR PROVIDER"}
@@ -319,8 +344,24 @@ export function DeskPanel({
   const { data: monitorStatus } = usePolling<MonitorStatusResponse>("/api/market-data/monitor", 15_000);
   const [includeReviewDatasets, setIncludeReviewDatasets] = useState(false);
   const localDatasets = datasetCatalog?.datasets ?? [];
+  const { data: catalog } = usePolling<DatasetCatalogResponse>("/api/market-data/datasets", 60_000, refreshKey);
+  const datasets = catalog?.datasets ?? [];
+  const chartSymbols = useMemo(() => {
+    const combined = [...symbols];
+    const seen = new Set(combined.map((item) => item.symbol));
+    for (const dataset of datasets) {
+      if (seen.has(dataset.instrumentId)) continue;
+      seen.add(dataset.instrumentId);
+      combined.push({
+        symbol: dataset.instrumentId,
+        name: dataset.displayName,
+        decimals: 2,
+      });
+    }
+    return combined;
+  }, [symbols, datasets]);
   const preset = slots.length; // layout preset is derived from the slot count
-  const decimalsOf = (symbol: string) => symbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
+  const decimalsOf = (symbol: string) => chartSymbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
   const gridClass =
     preset === 1
       ? "grid-cols-1 grid-rows-1"
@@ -330,7 +371,7 @@ export function DeskPanel({
 
   const setPresetSafe = (n: 1 | 2 | 4) => {
     const cur = [...slots];
-    while (cur.length < n) cur.push({ symbol: symbols[cur.length % symbols.length]?.symbol ?? "BTCUSDT", tf: "4h" });
+    while (cur.length < n) cur.push({ symbol: chartSymbols[cur.length % chartSymbols.length]?.symbol ?? "BTCUSDT", tf: "4h" });
     onSlotsChange(cur.slice(0, n));
   };
 
@@ -404,18 +445,18 @@ export function DeskPanel({
           <ChartCard
             key={String(i) + "-" + slot.symbol + "-" + slot.tf}
             slot={slot}
-            symbols={symbols}
+            symbols={chartSymbols}
             onFocus={() => onFocus(slot.symbol)}
             isFocused={slot.symbol === focusSymbol}
             onSymbolChange={(symbol) => {
               const next = [...slots];
-              next[i] = { ...slot, symbol };
+              next[i] = { ...slot, symbol, datasetId: undefined };
               onSlotsChange(next);
               onFocus(symbol);
             }}
             onTfChange={(tf) => {
               const next = [...slots];
-              next[i] = { ...slot, tf };
+              next[i] = { ...slot, tf, datasetId: undefined };
               onSlotsChange(next);
             }}
             priceDecimals={decimalsOf(slot.symbol)}
