@@ -102,6 +102,7 @@ export interface MarketDatasetManifest {
     importer: "ami-dukascopy-csv-importer";
     importerVersion: 1;
     importedAt: string;
+    formingCutoffTs: number;
     dataUseClassification: string;
     dataUseNote: string;
     sourceTimezone: "UTC";
@@ -370,6 +371,7 @@ export async function createMarketDatasetManifest(args: {
       importer: "ami-dukascopy-csv-importer",
       importerVersion: 1,
       importedAt: args.importedAt ?? new Date().toISOString(),
+      formingCutoffTs: args.options.asOfTs,
       dataUseClassification: metadata.dataUse.classification,
       dataUseNote: metadata.dataUse.note,
       sourceTimezone: "UTC",
