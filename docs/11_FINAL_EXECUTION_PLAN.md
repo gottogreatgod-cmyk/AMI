@@ -2,22 +2,25 @@
 
 ## 0.1 Implementation snapshot — 17 November 2026
 
-This snapshot distinguishes committed implementation from planned work:
+This snapshot separates committed code from live-market validation and research-engine eligibility.
 
 | Work item | Current evidence | Remaining gate |
 |---|---|---|
-| P0 workstation and signal repair | Source changes committed on the draft PR | Final clean-checkout/manual browser validation |
-| CI baseline | GitHub Actions runs have passed locked install, Prisma generation, lint, strict TypeScript, deterministic tests and production build | Re-run against the latest market-importer commits; add API/browser/security coverage |
-| Canonical instrument metadata | v2 metadata contract and unit tests committed | Migrate the live registry and verify contract/session economics |
-| XAU/USD and NAS100 history | Pinned Dukascopy download orchestrator, sequential bid/ask requests, CSV normalizer, manifest hashes and quality checks committed | Download real bid/ask files, import and audit dataset coverage |
-| Dataset operations | Local importer CLI and manifest schema committed | Add dataset catalog, resumable imports and provider-to-engine adapter |
+| P0 workstation and signal repair | Refresh/polling/chart lifecycle and live/backtest evaluator changes committed | Manual browser sign-off |
+| CI and deterministic engine/data tests | GitHub Actions installs locked dependencies, generates Prisma, lints, type-checks, runs Bun tests and builds production output | Add route-level integration, browser, accessibility and security tests |
+| Canonical instrument metadata | CFD, OTC spot, dated futures, continuous futures and tokenized metal are distinct | Migrate active registry and verify contract/session economics |
+| XAU/USD and NAS100 history | Pinned Dukascopy downloader, separate bid/ask imports, UTC normalization and manifests committed | Import real data and audit actual coverage/session gaps |
+| Dataset provenance and verification | Hash-bound IDs; source CSV replay; normalized CSV regeneration; OHLC, duplicate, gap, volume, identity and quality checks; CLI/API catalogue | Resumable downloads and real-data audit |
+| Historical chart selection | Chart panels can select one exact PASS-labelled local revision at a matching timeframe; data is shown only after hash and source replay verification | Browser UX validation and a real imported dataset |
+| Research/backtest integration | Not enabled for XAUUSD-DUKA or NAS100-DUKA | Verify instrument costs/contract economics, then add exact dataset ID and provenance to runs |
 
-The Dukascopy workflow now downloads and normalizes bid/ask CSVs through a pinned downloader command. The downloader is not yet verified against a real market-data sample in this repository; no real market dataset has been imported or coverage-audited. It does not activate a live feed or wire the new instruments into the chart/backtest provider. The Nasdaq-style instrument remains a broker CFD, and XAU/USD remains OTC spot. Dated CME NQ/GC contract sizing stays blocked until verified contract specifications and execution costs exist.
+The Dukascopy workflow downloads bid and ask separately and retains the source export, normalized bars and SHA-256 manifest under the ignored local path `data/market-data/`. The importer does not fill gaps. Zero-volume candles are omitted by the provider by default, so the download orchestrator does not retry every empty partition; weekends/holidays remain for calendar-aware gap classification.
 
-The current CI job is intentionally deterministic and network-independent beyond package installation. It covers lint, strict TypeScript, engine/data unit tests, an offline importer and downloader CLI help smoke tests, and production build. API/browser tests, security scanning, provider health probes and paper-forward testing are still explicit follow-on gates.
+**Important boundary:** the new local datasets are currently chart-selectable only. They are not yet wired into the strategy/backtest runner and the two new instruments are not in the active tradable instrument registry. Their contract point values, quantity increments, fee/spread/financing costs and calendars are still unverified. The risk engine must not infer those values from the CFD/spot labels.
+
+No real market-data archive has been downloaded or audited by this implementation. The CI workflow is offline for provider data; passing CI proves code/build invariants, not market-data coverage, feed freshness or trading performance. Live order routing remains disabled.
 
 ---
-
 ## Final Test Candidate program · Nasdaq-100 and XAU/USD first
 
 **Program status:** approved implementation blueprint; the deliverables below are planned unless explicitly marked completed in the source branch.  
