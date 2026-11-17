@@ -25,7 +25,7 @@ const validCsv = [
   String(Date.parse("2024-01-01T00:00:00.000Z")) + ",2050,2052,2049,2051,100",
   String(Date.parse("2024-01-01T01:00:00.000Z")) + ",2051,2053,2050,2052,125",
   String(Date.parse("2024-01-01T02:00:00.000Z")) + ",2052,2054,2051,2053,130",
-].join("\\n");
+].join("\n");
 
 describe("Dukascopy CSV normalization", () => {
   test("parses UTC millisecond candles and derives close timestamps", () => {
@@ -46,7 +46,7 @@ describe("Dukascopy CSV normalization", () => {
       timestamp1 + ",2051,2053,2050,2052,10",
       timestamp0 + ",2050,2052,2049,2051,11",
       timestamp1 + ",2051,2055,2050,2054,99",
-    ].join("\\n");
+    ].join("\n");
     const result = parseDukascopyCsv(csv, defaultOptions);
 
     expect(result.bars.map((bar) => bar.t)).toEqual([timestamp0, timestamp1]);
@@ -62,7 +62,7 @@ describe("Dukascopy CSV normalization", () => {
       "timestamp,open,high,low,close,volume",
       timestamp + ",2050,2040,2049,2051,10",
       (timestamp + HOUR) + ",2050,2052,2049,2051,-1",
-    ].join("\\n");
+    ].join("\n");
     const result = parseDukascopyCsv(csv, defaultOptions);
 
     expect(result.bars).toHaveLength(0);
@@ -81,7 +81,7 @@ describe("Dukascopy CSV normalization", () => {
       "timestamp,open,high,low,close,volume",
       first + ",2050,2052,2049,2051,10",
       second + ",2051,2053,2050,2052,12",
-    ].join("\\n");
+    ].join("\n");
     const result = parseDukascopyCsv(csv, {
       ...defaultOptions,
       asOfTs: second + 30 * 60_000,
@@ -97,7 +97,7 @@ describe("Dukascopy CSV normalization", () => {
       "timestamp,open,high,low,close,volume",
       first + ",2050,2052,2049,2051,10",
       (first + 4 * HOUR) + ",2051,2053,2050,2052,12",
-    ].join("\\n");
+    ].join("\n");
     const result = parseDukascopyCsv(csv, defaultOptions);
 
     expect(result.bars).toHaveLength(2);
@@ -110,7 +110,7 @@ describe("Dukascopy CSV normalization", () => {
     const csv = [
       "timestamp,open,high,low,close",
       timestamp + ",2050,2052,2049,2051",
-    ].join("\\n");
+    ].join("\n");
     const parsed = parseDukascopyCsv(csv, defaultOptions);
 
     expect(parsed.volumeAvailable).toBe(false);
