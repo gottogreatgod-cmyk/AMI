@@ -13,6 +13,24 @@ interface ConfirmedLevel {
   broken: boolean;
 }
 
+function normalizeStructureBars(input: readonly Bar[]): Bar[] {
+  const sorted = [...input]
+    .filter((bar) =>
+      [bar.t, bar.h, bar.l, bar.c].every(Number.isFinite) &&
+      bar.t > 0 &&
+      bar.h > 0 &&
+      bar.l > 0 &&
+      bar.c > 0 &&
+      bar.h >= Math.max(bar.l, bar.c) &&
+      bar.l <= Math.min(bar.h, bar.c)
+    )
+    .sort((a, b) => a.t - b.t);
+
+  const byTimestamp = new Map<number, Bar>();
+  for (const bar of sorted) byTimestamp.set(bar.t, bar);
+  return [...byTimestamp.values()];
+}
+
 /**
  * Causal swing-break markers for closed OHLC bars.
  *
@@ -28,6 +46,7 @@ export function buildStructureMarkers(
   bars: readonly Bar[],
   options: { leftBars?: number; rightBars?: number } = {}
 ): StructureMarker[] {
+  const chronologicalBars = normalizeStructureBars(bars);
   const leftBars = options.leftBars ?? 3;
   const rightBars = options.rightBars ?? 3;
   if (
@@ -35,7 +54,7 @@ export function buildStructureMarkers(
     !Number.isInteger(rightBars) ||
     leftBars < 1 ||
     rightBars < 1 ||
-    bars.length < leftBars + rightBars + 1
+    chronologicalBars.length < leftBars + rightBars + 1
   ) {
     return [];
   }
@@ -45,20 +64,20 @@ export function buildStructureMarkers(
   let trend: -1 | 0 | 1 = 0;
   const markers: StructureMarker[] = [];
 
-  for (let index = 0; index < bars.length; index++) {
-    const bar = bars[index];
+  for (let index = 0; index < chronologicalBars.length; index++) {
+    const bar = chronologicalBars[index];
     if (![bar.t, bar.h, bar.l, bar.c].every(Number.isFinite)) continue;
-    const previousClose = index > 0 ? bars[index - 1].c : bar.c;
+    const previousClose = index > 0 ? chronologicalBars[index - 1].c : bar.c;
 
     const pivotIndex = index - rightBars;
     if (pivotIndex >= leftBars) {
-      const pivot = bars[pivotIndex];
+      const pivot = chronologicalBars[pivotIndex];
       let isSwingHigh = Number.isFinite(pivot.h);
       let isSwingLow = Number.isFinite(pivot.l);
 
       for (let offset = pivotIndex - leftBars; offset <= pivotIndex + rightBars; offset++) {
         if (offset === pivotIndex) continue;
-        const other = bars[offset];
+        const other = chronologicalBars[offset];
         if (!other || !Number.isFinite(other.h) || !Number.isFinite(other.l)) {
           isSwingHigh = false;
           isSwingLow = false;
