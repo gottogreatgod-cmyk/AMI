@@ -59,5 +59,8 @@ jobs:
       - name: Offline market-data catalogue CLI smoke test
         run: bun run market-data:inspect -- --help
 
+      - name: Offline experimental monitor CLI help smoke test
+        run: bun run market-data:monitor -- --help
+
       - name: Production build
         run: bun run build
