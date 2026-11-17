@@ -68,7 +68,7 @@ export interface CanonicalInstrumentMetadata {
     readonly classification: "LOCAL_RESEARCH_ONLY" | "SUBJECT_TO_PROVIDER_TERMS" | "PUBLIC_REFERENCE_ONLY";
     readonly note: string;
   };
-  readonly metadataVersion: 2;
+  readonly metadataVersion: 3;
 }
 
 const unavailableContract = {
