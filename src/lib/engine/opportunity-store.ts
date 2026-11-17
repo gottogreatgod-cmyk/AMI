@@ -205,6 +205,7 @@ export async function listPersistentOpportunities(
   });
   return rows.map((row) => ({
     created: false,
+    opportunityId: row.id,
     version: row.version,
     snapshot: toSnapshot(row),
   }));
@@ -233,6 +234,7 @@ export async function applyPersistentOpportunityObservation(
     if (newEvents.length === 0) {
       return {
         created: false,
+        opportunityId: row.id,
         version: row.version,
         snapshot: current,
       };
