@@ -125,7 +125,13 @@ function ChartCard({
   const candlesUrl = selectedDataset
     ? `/api/candles?symbol=${encodeURIComponent(chartSymbol)}&tf=${chartTf}&datasetId=${encodeURIComponent(selectedDataset.datasetId)}&limit=600${selectedDataset.qualityStatus === "REVIEW" ? "&allowReview=true" : ""}`
     : `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`;
-  const { data, error, loading } = usePolling<CandlesResponse>(candlesUrl, 60_000, refreshKey);
+  // A pinned local dataset is immutable; refetch it only on explicit refresh
+  // or an infrequent safety interval instead of rereading the entire archive each minute.
+  const { data, error, loading } = usePolling<CandlesResponse>(
+    candlesUrl,
+    selectedDataset ? 86_400_000 : 60_000,
+    refreshKey
+  );
   const dataMatchesSelection = Boolean(
     data &&
     data.symbol === chartSymbol &&
