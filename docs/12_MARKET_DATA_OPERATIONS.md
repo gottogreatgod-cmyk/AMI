@@ -64,8 +64,8 @@ Install the Parquet reader in your Python environment and download the official 
 ~~~bash
 python3 -m pip install pyarrow
 curl -LO https://historicalfuturesdata.com/samples/pack/es-nq-tick-sample-2026-11-09.zip
-python3 scripts/market-data/nq_sample_import.py \\
-  --archive es-nq-tick-sample-2026-11-09.zip \\
+python3 scripts/market-data/nq_sample_import.py \
+  --archive es-nq-tick-sample-2026-11-09.zip \
   --contract NQZ6
 ~~~
 
