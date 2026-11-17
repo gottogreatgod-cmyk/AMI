@@ -14,6 +14,7 @@ const quotePairSchema = z.object({
 
 const requestSchema = z.object({
   instrumentId: z.string().min(1).max(80),
+  accountCurrency: z.string().regex(/^[A-Z]{3}$/),
   accountEquity: z.number().finite().positive(),
   riskPercent: z.number().finite().positive().max(100),
   availableMargin: z.number().finite().positive(),
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "UNKNOWN_INSTRUMENT" }, { status: 404 });
   }
 
-  const economics = getInstrumentRiskEconomics(input.instrumentId);
+  const economics = getInstrumentRiskEconomics(input.instrumentId, input.accountCurrency);
   if (!economics) {
     return NextResponse.json({ error: "RISK_ECONOMICS_UNAVAILABLE" }, { status: 422 });
   }
@@ -83,6 +84,9 @@ export async function POST(req: NextRequest) {
       id: instrument.id,
       displayName: instrument.displayName,
       dataClass: instrument.dataClass,
+      quoteCurrency: instrument.quoteCurrency,
+      pnlCurrency: instrument.pnlCurrency,
+      accountCurrency: input.accountCurrency,
       metadataVersion: instrument.metadataVersion,
     },
     operation: "CALCULATION_ONLY",
