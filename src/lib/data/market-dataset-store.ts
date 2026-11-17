@@ -2,7 +2,10 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   DUKASCOPY_TIMEFRAME_MS,
+  parseDukascopyCsv,
+  serializeNormalizedBars,
   sha256Hex,
+  type CsvImportOptions,
   type DukascopyTimeframe,
   type ImportedBar,
   type MarketDatasetManifest,
@@ -27,7 +30,8 @@ export type DatasetStoreErrorCode =
   | "NORMALIZED_HASH_MISMATCH"
   | "ROW_COUNT_MISMATCH"
   | "BAR_INVALID"
-  | "COVERAGE_MISMATCH";
+  | "COVERAGE_MISMATCH"
+  | "QUALITY_MISMATCH";
 
 export class DatasetStoreError extends Error {
   readonly code: DatasetStoreErrorCode;
@@ -339,9 +343,60 @@ export async function loadMarketDataset(
   }
 
   const bars = parseNormalizedCsv(normalizedCsv, manifest);
+  if (bars.length === 0) {
+    throw new DatasetStoreError("BAR_INVALID", "Empty datasets cannot be loaded for research.");
+  }
   if (bars.length !== manifest.actualCoverage.rows || bars.length !== manifest.quality.acceptedRows) {
     throw new DatasetStoreError("ROW_COUNT_MISMATCH", "Normalized row count does not match manifest diagnostics.");
   }
+
+  // Reparse the immutable source and re-create its normalized representation.
+  // This makes the manifest quality label auditable instead of trusting a
+  // mutable JSON field next to the files it describes.
+  const sourceOptions: CsvImportOptions = {
+    instrumentId: identity.instrumentId,
+    timeframe: identity.timeframe,
+    priceSide: manifest.pricing.downloadedSide,
+    from: manifest.requestedRange.from,
+    to: manifest.requestedRange.toExclusive,
+    asOfTs: manifest.provenance.formingCutoffTs,
+    volumeUnits: manifest.volume.units ?? "units",
+  };
+  const sourceParsed = parseDukascopyCsv(sourceCsv, sourceOptions);
+  const recreatedNormalized = serializeNormalizedBars(sourceParsed.bars);
+  if (recreatedNormalized !== normalizedCsv) {
+    throw new DatasetStoreError(
+      "QUALITY_MISMATCH",
+      "Normalized bars do not reproduce from the source CSV and manifest import settings."
+    );
+  }
+
+  const diagnosticFields = [
+    "inputRows",
+    "acceptedRows",
+    "invalidRows",
+    "duplicateRows",
+    "formingRowsRemoved",
+    "unclassifiedGaps",
+    "qualityStatus",
+  ] as const;
+  for (const field of diagnosticFields) {
+    if (sourceParsed.diagnostics[field] !== manifest.quality[field]) {
+      throw new DatasetStoreError(
+        "QUALITY_MISMATCH",
+        "Manifest quality diagnostic does not match the original source: " + field
+      );
+    }
+  }
+  if (
+    sourceParsed.volumeAvailable !== manifest.volume.present ||
+    (sourceParsed.volumeAvailable && manifest.volume.semantics !== "PROVIDER_REPORTED") ||
+    (!sourceParsed.volumeAvailable && manifest.volume.semantics !== "UNAVAILABLE") ||
+    (sourceParsed.volumeAvailable && manifest.volume.units === null)
+  ) {
+    throw new DatasetStoreError("QUALITY_MISMATCH", "Manifest volume metadata does not match the source CSV.");
+  }
+
   const first = bars[0];
   const last = bars[bars.length - 1];
   if (
