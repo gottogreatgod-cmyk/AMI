@@ -147,6 +147,7 @@ describe("market dataset provenance", () => {
     const second = await createMarketDatasetManifest(args);
 
     expect(first.datasetId).toBe(second.datasetId);
+    expect(first.datasetId.split("-")).toContain("meta3");
     expect(first.provenance.rawSha256).toBe(second.provenance.rawSha256);
     expect(first.provenance.normalizedSha256).toBe(second.provenance.normalizedSha256);
     expect(first.instrument.dataClass).toBe("OTC_SPOT_METAL");
