@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #321 green on 17 Nov 2026: Prisma schema apply, lint, strict typecheck, 114 Bun tests across 15 files, four offline CLI smoke checks and production build; route/browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #328 green on 17 Nov 2026: Prisma client generation and isolated SQLite schema apply, lint, strict typecheck, 121 Bun tests across 16 files (including risk API route contract tests), four offline CLI smoke checks and production build; browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -290,7 +290,7 @@
     {
       "id": "FTC-410",
       "name": "Trade calculator and risk policy",
-      "status": "Generic contract-verified risk calculator, canonical metadata adapter and authenticated POST /api/risk/calculate implemented. Requires explicit account currency, P&L/quote currency and verified pair-labelled FX rates for cross-currency sizing; current XAUUSD-DUKA/NAS100-DUKA remain NO_TRADE due to unverified contract/cost/margin data. Route tests, trusted FX source and user account-currency integration pending",
+      "status": "Generic contract-verified risk calculator, canonical metadata v3 adapter and authenticated POST /api/risk/calculate implemented and route-tested. Requires explicit account currency, declared P&L/quote currencies and verified pair-labelled FX rates for cross-currency sizing; current XAUUSD-DUKA/NAS100-DUKA correctly return NO_TRADE. Trusted FX provider, persisted account-currency profile, UI/opportunity integration and independently verified contract/cost/margin facts pending",
       "dependsOn": [
         "FTC-100",
         "FTC-400"
@@ -481,7 +481,8 @@
       "Generic contract-verified trade calculator: requires verified contract tick/quantity/point/notional economics, verified fees/slippage, verified initial-margin rate or per-unit requirement, and side-aware executable entry/stop/target prices; calculates stop risk, two-leg costs, net reward/risk, leverage/margin caps and explicit NO_TRADE reasons",
       "Canonical instrument metadata v3 now carries explicit notional multiplier and initial margin rate/per-unit fields; all existing instruments remain null/unverified unless an authoritative specification is added",
       "Authenticated POST /api/risk/calculate adapts server-owned canonical metadata and requires separate bid/ask quote pairs for entry, stop and target; rejects crossed quotes, unverified contract/cost/margin, invalid ticks, inadequate net R:R and quantities outside risk/margin caps",
-      "Risk calculator currency safety: canonical registry explicitly declares each instrument's P&L settlement currency; adapter requires account currency and only accepts verified FX rates labelled for the exact P&L/quote/account currency triplet; same-currency rates are exactly 1; API requires account currency and does not accept a client-supplied verified-FX flag"
+      "Risk calculator currency safety: canonical registry explicitly declares each instrument's P&L settlement currency; adapter requires account currency and only accepts verified FX rates labelled for the exact P&L/quote/account currency triplet; same-currency rates are exactly 1; API requires account currency and does not accept a client-supplied verified-FX flag",
+      "Risk calculation API route regression tests cover authentication, malformed/strict request validation, required account currency, rejection of client-supplied contract facts, unknown instrument handling, crossed bid/ask pairs and calculation-only NO_TRADE for unverified XAUUSD-DUKA metadata"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -507,11 +508,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 321,
+      "latestFullyGreenRun": 328,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 114,
-      "testFiles": 15,
+      "tests": 121,
+      "testFiles": 16,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
