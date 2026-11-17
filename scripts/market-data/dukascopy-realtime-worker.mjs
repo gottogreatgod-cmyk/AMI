@@ -170,6 +170,7 @@ async function run() {
       }) + "\n");
     }
 
+    if (process.env.AMI_MONITOR_ONCE === "1") break;
     if (!stopping) {
       await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
     }
