@@ -5,6 +5,7 @@ import {
   loadMarketDataset,
   type DatasetCatalogEntry,
 } from "../../src/lib/data/market-dataset-store";
+import { assessMarketDatasetUse } from "../../src/lib/data/market-dataset-policy";
 
 function usage(): string {
   return [
@@ -83,6 +84,7 @@ async function main(): Promise<void> {
       rawSha256: loaded.manifest.provenance.rawSha256,
       normalizedSha256: loaded.manifest.provenance.normalizedSha256,
       candleCutoffTs: loaded.manifest.provenance.formingCutoffTs,
+      operationPolicy: assessMarketDatasetUse(loaded.manifest, { allowReview }),
     }, null, 2) + "\n");
     return;
   }
