@@ -203,10 +203,20 @@ export const MARKET_INSTRUMENTS = {
       timezone: "America/Chicago",
       hoursVerified: false,
     },
-    contract: unavailableContract,
+    contract: {
+      status: "VERIFIED",
+      tickSize: 0.25,
+      quantityIncrement: 1,
+      pointValue: 20,
+      notionalMultiplier: 20,
+      initialMarginRate: null,
+      initialMarginPerUnit: null,
+      expiry: null,
+      verificationSource: "CME E-mini Nasdaq-100 futures contract specifications: https://www.cmegroup.com/markets/equities/nasdaq/e-mini-nasdaq-100.contractSpecs.html",
+    },
     costs: {
       ...unverifiedCosts,
-      note: "Free one-day evaluation sample only; dated-contract costs, fees, margin and execution conditions remain unverified.",
+      note: "CME static tick and multiplier are verified, but commissions, spread, slippage, exchange/broker fees and current initial margin remain unverified.",
     },
     dataUse: {
       classification: "LOCAL_RESEARCH_ONLY",
