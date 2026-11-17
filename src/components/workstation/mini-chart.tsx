@@ -118,6 +118,7 @@ export function MiniChart({
       }
     };
     let ro: ResizeObserver | null = null;
+    let fallbackCleanup: (() => void) | null = null;
     const onWindowResize = () => {
       const bounds = el.getBoundingClientRect();
       resize(bounds.width, bounds.height);
@@ -136,7 +137,7 @@ export function MiniChart({
     queueMicrotask(() => setReady(true));
     return () => {
       ro?.disconnect();
-      window.removeEventListener("resize", onWindowResize);
+      fallbackCleanup?.();
       chart.remove();
       hasFitContentRef.current = false;
       chartRef.current = null;
