@@ -320,6 +320,7 @@ export async function createMarketDatasetManifest(args: {
     args.options.from,
     args.options.to,
     args.options.priceSide,
+    "meta" + metadata.metadataVersion,
     args.parsed.volumeAvailable ? args.options.volumeUnits : "no-volume",
     rawSha256.slice(0, 8),
     normalizedSha256.slice(0, 12),
