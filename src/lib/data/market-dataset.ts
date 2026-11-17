@@ -62,6 +62,7 @@ export interface MarketDatasetManifest {
   instrument: {
     id: string;
     displayName: string;
+    metadataVersion: number;
     dataClass: CanonicalInstrumentMetadata["dataClass"];
     provider: string;
     providerInstrument: string;
@@ -319,6 +320,7 @@ export async function createMarketDatasetManifest(args: {
     args.options.from,
     args.options.to,
     args.options.priceSide,
+    args.parsed.volumeAvailable ? args.options.volumeUnits : "no-volume",
     rawSha256.slice(0, 8),
     normalizedSha256.slice(0, 12),
   ].join("-");
@@ -329,6 +331,7 @@ export async function createMarketDatasetManifest(args: {
     instrument: {
       id: metadata.id,
       displayName: metadata.displayName,
+      metadataVersion: metadata.metadataVersion,
       dataClass: metadata.dataClass,
       provider: metadata.provider,
       providerInstrument: metadata.providerInstrument,
