@@ -277,6 +277,30 @@ export function computeWarmup(cfg: StrategyConfig): number {
   return w;
 }
 
+/** Minimum closed higher-timeframe history needed before its filter is usable. */
+export function requiredHtfWarmupBars(cfg: StrategyConfig): number {
+  if (!cfg.htf) return 0;
+  if (cfg.htf.type === "range-neutral") {
+    return Math.max(20, Math.min(cfg.htf.fast, 14) * 2 + 2);
+  }
+  return Math.max(2, cfg.htf.fast, cfg.htf.slow) + 2;
+}
+
+/** True only when enough HTF bars have actually closed by the decision time. */
+export function hasHtfWarmup(
+  htfBars: Bar[] | null,
+  cfg: StrategyConfig,
+  decisionTs: number
+): boolean {
+  if (!cfg.htf) return true;
+  if (!htfBars?.length || !Number.isFinite(decisionTs)) return false;
+  let eligible = 0;
+  for (const bar of htfBars) {
+    if (bar.ct <= decisionTs) eligible++;
+  }
+  return eligible >= requiredHtfWarmupBars(cfg);
+}
+
 export function runBacktest(
   symbol: string,
   tf: Timeframe,
