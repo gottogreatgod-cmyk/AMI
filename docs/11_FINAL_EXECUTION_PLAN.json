@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions green through importer/downloader/catalogue smoke tests and production build; route-level integration, browser, accessibility and security tests pending",
+      "status": "GitHub Actions run #124 green on 17 Nov 2026: lint, strict typecheck, 45 Bun tests, importer/downloader/catalogue smoke tests and production build; full API/browser/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -170,7 +170,7 @@
     {
       "id": "FTC-130",
       "name": "Dataset versioning and quality CLI",
-      "status": "hash-bound versioned datasets, source replay, quality verification, catalogue CLI/API and explicit chart source selector committed; resumable imports, real-data audit and engine research adapter pending",
+      "status": "hash-bound versioned datasets, original-source replay, normalized-data regeneration, quality/volume/identity checks, catalogue CLI/API and chart integration committed; real-data session audit and resumable import jobs pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -238,7 +238,7 @@
     {
       "id": "FTC-300",
       "name": "Live multi-chart desk",
-      "status": "chart desk now supports explicit hash-verified local historical revisions; real-time streaming, forming candles, overlays and reconnect continuity remain pending",
+      "status": "explicit local history chart source committed; PASS by default, REVIEW only through deliberate UI opt-in; live streaming, forming candles, overlays and reconnect continuity pending",
       "dependsOn": [
         "FTC-210"
       ],
@@ -465,7 +465,9 @@
       "UTC CSV importer with SHA-256 raw/normalized hashes, immutable dataset revisions, OHLC validation, duplicate/gap diagnostics and no synthetic bars",
       "Dataset catalog and explicit loader that replays the original CSV, recreates normalized bars and checks data-class identity, quote side, volume metadata, quality labels and dataset hashes",
       "Authenticated dataset catalogue and paginated verified-bar APIs",
-      "Chart-panel selector for explicit PASS-labelled local historical revisions; exact dataset response identity is required before bars are displayed"
+      "Chart-panel selector for explicit PASS-labelled local historical revisions; exact dataset response identity is required before bars are displayed",
+      "Chart desk defaults to PASS-labelled local revisions and exposes a deliberate REVIEW opt-in; REVIEW requests explicitly set allowReview=true and still pass full source/hash validation",
+      "Immutable local historical chart sources refetch only on manual refresh or a long safety interval; live provider charts keep their shorter polling cadence"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -482,6 +484,20 @@
       "historicalDatasetBacktestEnabled": false,
       "reviewDatasetsEnabledByDefault": false,
       "syntheticGapFillingEnabled": false
+    },
+    "validation": {
+      "latestCompletedRun": 124,
+      "completedAt": "2026-11-17",
+      "result": "success",
+      "tests": 45,
+      "testFiles": 7,
+      "lint": true,
+      "strictTypecheck": true,
+      "productionBuild": true,
+      "importerCliSmoke": true,
+      "downloaderCliSmoke": true,
+      "catalogueCliSmoke": true,
+      "realMarketDataDownloaded": false
     }
   }
 }
