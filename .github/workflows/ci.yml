@@ -56,5 +56,8 @@ jobs:
       - name: Offline market-data download orchestrator help smoke test
         run: bun run market-data:download -- --help
 
+      - name: Offline market-data catalogue CLI smoke test
+        run: bun run market-data:inspect -- --help
+
       - name: Production build
         run: bun run build
