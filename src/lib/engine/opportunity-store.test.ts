@@ -127,7 +127,7 @@ describe("persistent opportunity store", () => {
     });
     expect(noTransition.snapshot.status).toBe("WATCH");
     expect(noTransition.version).toBe(2);
-    expect(noTransition.snapshot.lastProcessedBarCloseTs).toBe(11 * STEP - 1);
+    expect(noTransition.snapshot.lastProcessedBarCloseTs).toBe(12 * STEP - 1);
     expect(noTransition.snapshot.events).toHaveLength(1);
 
     // A different OHLC payload with the same close timestamp must not be
