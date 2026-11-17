@@ -1,13 +1,13 @@
 # 11 — AMI final execution plan
 
-## 0.1 Implementation snapshot — 17 November 2026
+## 0.1 Implementation snapshot — 18 November 2026
 
 This snapshot separates committed code from live-market validation and research-engine eligibility.
 
 | Work item | Current evidence | Remaining gate |
 |---|---|---|
 | P0 workstation and signal repair | Refresh/polling/chart lifecycle and live/backtest evaluator changes committed | Manual browser sign-off |
-| CI and deterministic engine/data tests | GitHub Actions run #328 passed on 17 November 2026: frozen install, Prisma client generation and isolated SQLite schema apply, lint, strict type-check, 121 Bun tests across 16 files (including risk API route tests), four offline CLI smoke checks and production build | Add route-level integration, browser, accessibility and security tests |
+| CI and deterministic engine/data tests | GitHub Actions run #356 passed on 17 November 2026: frozen install, Prisma client generation and isolated SQLite schema apply, lint, strict TypeScript, 122 Bun tests across 16 files, 6 Python NQ importer tests, five offline CLI smoke checks and production build | Add route-level integration, browser, accessibility and security tests |
 | Canonical instrument metadata | CFD, OTC spot, dated futures, continuous futures and tokenized metal are distinct | Migrate active registry and verify contract/session economics |
 | XAU/USD and NAS100 history | Pinned Dukascopy downloader, separate bid/ask imports, UTC normalization and manifests committed | Import real data and audit actual coverage/session gaps |
 | Dataset provenance and verification | Hash-bound IDs; source CSV replay; normalized CSV regeneration; OHLC, duplicate, gap, volume, identity and quality checks; CLI/API catalogue | Resumable downloads and real-data audit |
@@ -17,12 +17,15 @@ This snapshot separates committed code from live-market validation and research-
 | Research/backtest integration | Not enabled for XAUUSD-DUKA or NAS100-DUKA | Verify instrument costs/contract economics, then add exact dataset ID and provenance to runs |
 | Opportunity lifecycle | Pure reducer with timestamped evidence, six lifecycle states, append-only events, data/HTF suppression, invalidation-first safety priority and idempotent closed-bar observations | Automatic candidate sourcing, durable persistence/deduplication, API/UI integration and paper OMS handoff |
 | Contract-verified risk calculator | Metadata v3 adapter plus authenticated `POST /api/risk/calculate`; explicit account currency, declared P&L/quote currencies, exact-pair verified FX conversion, bid/ask pairs, tick/lot checks, two-sided costs, verified margin model and NO_TRADE reasons; route tests pass | Trusted FX provider and saved account currency; verified XAUUSD-DUKA/NAS100-DUKA contract/cost/margin values; browser tests and UI/opportunity integration |
+| NQZ6 free dated-contract sample | Pinned official ZIP hash; tick-derived 1m bars, source/manifest hashes, NQZ6/CME identity, continuous reference reconciliation, private-use restrictions, canonical $20 point value and 0.25 tick; Python unit/CLI checks pass | Download/run actual Parquet pack; PyArrow runtime verification; row-level minute-volume CSV reconciliation; integrate only as separate research dataset |
 
 The Dukascopy workflow downloads bid and ask separately and retains the source export, normalized bars and SHA-256 manifest under the ignored local path `data/market-data/`. The importer does not fill gaps. Zero-volume candles are omitted by the provider by default, so the download orchestrator does not retry every empty partition; weekends/holidays remain for calendar-aware gap classification. PASS datasets are offered by default in chart panels; REVIEW datasets are available only after a deliberate UI opt-in and still undergo full verification.
 
 The chart desk also offers an observed prior available UTC-date high/low overlay and an optional displacement-origin zone overlay. The latter confirms zones only after a closed-bar impulse, tracks later retests and invalidation, and rejects unexplained gaps. Both remain chart research references; neither is a verified broker-session map or direct order-flow view.
 
 The optional current-rate monitor uses the documented `getRealTimeRates` Node API through an isolated local runtime pinned to dukascopy-node 1.51.1. It polls ticks and separate bid/ask candles, writes atomic snapshots, and exposes status through an authenticated API. The chart desk labels it **EXPERIMENTAL POLLING · NOT THE CHART FEED**. It is not a persistent WebSocket, has not yet been run against a real provider session in this implementation, and must not be treated as exchange-grade or used for order execution. Monitor ticks are not yet injected into the chart series.
+
+The limited NQZ6 sample has its own importer and identity, separate from `NAS100-DUKA` and `NQ=F`. It rebuilds minute bars from the dated NQZ6 ticks and uses the published continuous-series bars only as a reconciliation reference. CME static contract metadata records a $20 point multiplier, 0.25-point tick and one-contract increment; costs, current margin and session coverage remain unverified. The importer is CI-tested without a real archive, so no end-to-end Parquet import is claimed. The per-minute volume CSV is preserved and hash-verified but not yet parsed row by row.
 
 The initial FTC-410 calculator is exposed through an authenticated `POST /api/risk/calculate` endpoint backed by the canonical instrument registry. The caller supplies separate bid/ask quotes at entry, stop and target; long calculations use entry ASK and exit BID, while shorts use entry BID and exit ASK. Contract multipliers, point values, costs and initial-margin requirements are read only from server-side metadata v3—not accepted from the client.  It requires verified contract point value/multiplier, tick and quantity increments, fees/slippage, and a verified initial-margin rate or per-unit requirement. It also requires side-aware executable entry/stop/target prices. It returns `NO_TRADE` when any of those are unknown, when costs destroy the minimum net reward/risk, or when risk/margin caps leave no valid quantity. The synthetic verified contract in unit tests is only a fixture; no real XAUUSD-DUKA or NAS100-DUKA economics are certified, and both remain `NO_TRADE`.
 
