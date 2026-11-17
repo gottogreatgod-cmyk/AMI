@@ -31,6 +31,58 @@ function normalizeStructureBars(input: readonly Bar[]): Bar[] {
   return [...byTimestamp.values()];
 }
 
+
+export interface PriorUtcDateLevels {
+  /** UTC midnight of the prior available calendar date. */
+  sourceDayStartTs: number;
+  /** UTC midnight of the latest available calendar date in the input. */
+  latestDayStartTs: number;
+  high: number;
+  low: number;
+  firstBarTs: number;
+  lastBarTs: number;
+  barsObserved: number;
+}
+
+/**
+ * Observed high/low from the nearest earlier UTC calendar date present in the
+ * closed-bar input. This deliberately does not claim to be an exchange
+ * session high/low; provider omissions and holidays are not calendar-filled.
+ */
+export function buildPreviousAvailableUtcDateLevels(
+  bars: readonly Bar[]
+): PriorUtcDateLevels | null {
+  const chronologicalBars = normalizeStructureBars(bars);
+  if (chronologicalBars.length < 2) return null;
+
+  const utcDayStart = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  };
+
+  const latestDayStartTs = utcDayStart(chronologicalBars[chronologicalBars.length - 1].t);
+  const priorDays = chronologicalBars
+    .map((bar) => utcDayStart(bar.t))
+    .filter((dayStart) => dayStart < latestDayStartTs);
+  if (priorDays.length === 0) return null;
+
+  const sourceDayStartTs = Math.max(...priorDays);
+  const sourceBars = chronologicalBars.filter(
+    (bar) => utcDayStart(bar.t) === sourceDayStartTs
+  );
+  if (sourceBars.length === 0) return null;
+
+  return {
+    sourceDayStartTs,
+    latestDayStartTs,
+    high: Math.max(...sourceBars.map((bar) => bar.h)),
+    low: Math.min(...sourceBars.map((bar) => bar.l)),
+    firstBarTs: sourceBars[0].t,
+    lastBarTs: sourceBars[sourceBars.length - 1].t,
+    barsObserved: sourceBars.length,
+  };
+}
+
 /**
  * Causal swing-break markers for closed OHLC bars.
  *
