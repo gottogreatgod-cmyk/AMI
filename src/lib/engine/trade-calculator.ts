@@ -15,6 +15,12 @@ export interface InstrumentRiskEconomics {
     commissionBpsPerSide: number | null;
     slippageBpsPerSide: number | null;
   };
+  margin: {
+    status: "VERIFIED" | "UNVERIFIED";
+    /** Exactly one margin model must be supplied when status is VERIFIED. */
+    initialMarginRate: number | null;
+    initialMarginPerUnit: number | null;
+  };
 }
 
 export interface TradeSizingInput {
@@ -106,6 +112,9 @@ export function calculateTradeSize(
   if (economics.costs.status !== "VERIFIED") {
     reasons.push("EXECUTION_COSTS_UNVERIFIED");
   }
+  if (economics.margin.status !== "VERIFIED") {
+    reasons.push("INITIAL_MARGIN_REQUIREMENT_UNVERIFIED");
+  }
   if (input.executionPriceBasis !== "SIDE_AWARE_EXECUTABLE") {
     reasons.push("SIDE_AWARE_EXECUTABLE_PRICES_REQUIRED");
   }
@@ -128,6 +137,13 @@ export function calculateTradeSize(
     slippageBpsPerSide === null || !Number.isFinite(slippageBpsPerSide) || slippageBpsPerSide < 0
   ) {
     reasons.push("COST_SPEC_FIELDS_MISSING_OR_INVALID");
+  }
+  const marginRate = economics.margin.initialMarginRate;
+  const marginPerUnit = economics.margin.initialMarginPerUnit;
+  const hasMarginRate = marginRate !== null && Number.isFinite(marginRate) && marginRate > 0;
+  const hasMarginPerUnit = marginPerUnit !== null && Number.isFinite(marginPerUnit) && marginPerUnit > 0;
+  if (hasMarginRate === hasMarginPerUnit) {
+    reasons.push("INITIAL_MARGIN_MODEL_MISSING_OR_AMBIGUOUS");
   }
 
   const prices = [
@@ -164,6 +180,8 @@ export function calculateTradeSize(
   const pointValue = pnlCurrencyPerPointPerUnit as number;
   const multiplier = notionalMultiplier as number;
   const costBps = (commissionBpsPerSide as number) + (slippageBpsPerSide as number);
+  const verifiedMarginRate = hasMarginRate ? marginRate as number : null;
+  const verifiedMarginPerUnit = hasMarginPerUnit ? marginPerUnit as number : null;
   const entry = input.entryExecutionPrice;
   const stop = input.stopExecutionPrice;
   const target = input.targetExecutionPrice;
@@ -202,7 +220,10 @@ export function calculateTradeSize(
   const rawRiskQuantity = riskBudget / worstCaseStopLossPerUnit;
   const notionalPerUnit = entry * multiplier;
   const maxQuantityByLeverage = input.accountEquity * input.maxLeverage / notionalPerUnit;
-  const maxQuantityByMargin = input.availableMargin * input.maxLeverage / notionalPerUnit;
+  const marginPerQuantityUnit = verifiedMarginRate !== null
+    ? notionalPerUnit * verifiedMarginRate
+    : verifiedMarginPerUnit as number;
+  const maxQuantityByMargin = input.availableMargin / marginPerQuantityUnit;
   const quantity = floorToIncrement(
     Math.min(rawRiskQuantity, maxQuantityByLeverage, maxQuantityByMargin),
     quantityStep
@@ -219,7 +240,7 @@ export function calculateTradeSize(
   const estimatedCostsAtStop = quantity * (entryCostPerUnit + stopCostPerUnit);
   const estimatedCostsAtTarget = quantity * (entryCostPerUnit + targetCostPerUnit);
   const estimatedNotional = quantity * notionalPerUnit;
-  const estimatedInitialMargin = estimatedNotional / input.maxLeverage;
+  const estimatedInitialMargin = quantity * marginPerQuantityUnit;
   const grossRewardRisk = grossRewardPerUnit / grossLossPerUnit;
   const netRewardRisk = netTargetProfitPerUnit / worstCaseStopLossPerUnit;
   const minimumNetRewardRisk = input.minimumNetRewardRisk ?? 1;
@@ -256,7 +277,7 @@ export function calculateTradeSize(
       "Entry, stop and target are side-aware executable price estimates; spread is expected to be embedded in those prices.",
       "Commission and slippage are charged on both entry and exit legs.",
       "Quantity is rounded down to the verified quantity increment.",
-      "Initial margin is approximated as notional divided by the supplied account leverage limit.",
+      "Initial margin uses the verified instrument margin rate or per-unit requirement supplied with the contract economics.",
       "SIZED is a calculation result only; it does not submit or simulate an order fill.",
     ],
   };
