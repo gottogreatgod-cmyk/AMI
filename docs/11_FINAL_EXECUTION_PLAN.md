@@ -9,12 +9,12 @@ This snapshot distinguishes committed implementation from planned work:
 | P0 workstation and signal repair | Source changes committed on the draft PR | Final clean-checkout/manual browser validation |
 | CI baseline | GitHub Actions runs have passed locked install, Prisma generation, lint, strict TypeScript, deterministic tests and production build | Re-run against the latest market-importer commits; add API/browser/security coverage |
 | Canonical instrument metadata | v2 metadata contract and unit tests committed | Migrate the live registry and verify contract/session economics |
-| XAU/USD and NAS100 history | Dukascopy CSV normalizer, manifest hashes and quality checks committed | Download real bid/ask files, import and audit dataset coverage |
+| XAU/USD and NAS100 history | Pinned Dukascopy download orchestrator, sequential bid/ask requests, CSV normalizer, manifest hashes and quality checks committed | Download real bid/ask files, import and audit dataset coverage |
 | Dataset operations | Local importer CLI and manifest schema committed | Add dataset catalog, resumable imports and provider-to-engine adapter |
 
-The Dukascopy importer currently normalizes an existing CSV export. It does not download data, activate a live feed, or wire the new instruments into the chart/backtest provider. No real market dataset has been imported by this implementation. The Nasdaq-style instrument remains a broker CFD, and XAU/USD remains OTC spot. Dated CME NQ/GC contract sizing stays blocked until verified contract specifications and execution costs exist.
+The Dukascopy workflow now downloads and normalizes bid/ask CSVs through a pinned downloader command. The downloader is not yet verified against a real market-data sample in this repository; no real market dataset has been imported or coverage-audited. It does not activate a live feed or wire the new instruments into the chart/backtest provider. The Nasdaq-style instrument remains a broker CFD, and XAU/USD remains OTC spot. Dated CME NQ/GC contract sizing stays blocked until verified contract specifications and execution costs exist.
 
-The current CI job is intentionally deterministic and network-independent beyond package installation. It covers lint, strict TypeScript, engine/data unit tests, an offline importer CLI help smoke test, and production build. API/browser tests, security scanning, provider health probes and paper-forward testing are still explicit follow-on gates.
+The current CI job is intentionally deterministic and network-independent beyond package installation. It covers lint, strict TypeScript, engine/data unit tests, an offline importer and downloader CLI help smoke tests, and production build. API/browser tests, security scanning, provider health probes and paper-forward testing are still explicit follow-on gates.
 
 ---
 
