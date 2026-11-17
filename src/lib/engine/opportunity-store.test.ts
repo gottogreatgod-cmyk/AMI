@@ -95,7 +95,7 @@ describe("persistent opportunity store", () => {
       where: { userId, dedupeKey: candidate.id },
     });
     const events = await db.opportunityEvent.findMany({
-      where: { opportunityId: first.snapshot.candidate.id },
+      where: { opportunityId: first.opportunityId },
     });
     expect(rows).toHaveLength(1);
   });
@@ -104,7 +104,7 @@ describe("persistent opportunity store", () => {
     const userId = await createTestUser();
     const created = await createPersistentOpportunity(userId, makeCandidate("setup-transition"));
 
-    const suppressed = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const suppressed = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(10, 2049, 2049.5, 2048.5),
       gates: { ...readyGates, marketFresh: false },
       suppressionReasons: ["MONITOR_STALE"],
@@ -115,7 +115,7 @@ describe("persistent opportunity store", () => {
       "SUPPRESSED",
     ]);
 
-    const resumed = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const resumed = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(11, 2049, 2049.5, 2048.5),
       gates: readyGates,
     });
@@ -128,7 +128,7 @@ describe("persistent opportunity store", () => {
     ]);
 
     const eventRows = await db.opportunityEvent.findMany({
-      where: { opportunityId: created.snapshot.candidate.id },
+      where: { opportunityId: created.opportunityId },
       orderBy: { sequence: "asc" },
     });
     expect(eventRows.map((event) => event.sequence)).toEqual([0, 1, 2, 3]);
@@ -144,16 +144,16 @@ describe("persistent opportunity store", () => {
   test("duplicate and out-of-order closed bars do not create extra event rows or version changes", async () => {
     const userId = await createTestUser();
     const created = await createPersistentOpportunity(userId, makeCandidate("setup-idempotent"));
-    const first = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const first = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(10, 2049, 2049.5, 2048.5),
       gates: readyGates,
     });
 
-    const duplicate = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const duplicate = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(10, 2051, 2052, 2048),
       gates: readyGates,
     });
-    const older = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const older = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(9, 2051, 2052, 2048),
       gates: readyGates,
     });
@@ -165,7 +165,7 @@ describe("persistent opportunity store", () => {
     expect(older.snapshot.events).toHaveLength(2);
 
     const eventCount = await db.opportunityEvent.count({
-      where: { opportunityId: created.snapshot.candidate.id },
+      where: { opportunityId: created.opportunityId },
     });
     expect(eventCount).toBe(2);
   });
@@ -173,11 +173,11 @@ describe("persistent opportunity store", () => {
   test("terminal opportunities persist one trigger event and stay terminal", async () => {
     const userId = await createTestUser();
     const created = await createPersistentOpportunity(userId, makeCandidate("setup-terminal"));
-    const triggered = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const triggered = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(10, 2051, 2052, 2049),
       gates: readyGates,
     });
-    const after = await applyPersistentOpportunityObservation(userId, created.snapshot.candidate.id, {
+    const after = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
       bar: closedBar(11, 2030, 2055, 2020),
       gates: readyGates,
     });
@@ -193,7 +193,7 @@ describe("persistent opportunity store", () => {
     const otherUserId = await createTestUser();
     const created = await createPersistentOpportunity(ownerId, makeCandidate("setup-private"));
 
-    expect(await getPersistentOpportunity(otherUserId, created.snapshot.candidate.id)).toBeNull();
+    expect(await getPersistentOpportunity(otherUserId, created.opportunityId)).toBeNull();
     expect(await listPersistentOpportunities(otherUserId)).toHaveLength(0);
     expect(await listPersistentOpportunities(ownerId)).toHaveLength(1);
   });
@@ -208,7 +208,7 @@ describe("persistent opportunity store", () => {
 
     expect(first.created).toBe(true);
     expect(second.created).toBe(true);
-    expect(first.snapshot.candidate.id).toBe(second.snapshot.candidate.id);
+    expect(first.snapshot.candidate.id).toBe(second.opportunityId);
     expect(await listPersistentOpportunities(firstUser)).toHaveLength(1);
     expect(await listPersistentOpportunities(secondUser)).toHaveLength(1);
   });
