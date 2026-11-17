@@ -53,6 +53,20 @@ jobs:
       - name: Deterministic unit and engine tests
         run: bun test
 
+      - name: Set up Python for independent NQ sample importer
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Compile NQ sample importer
+        run: python -m compileall -q scripts/market-data
+
+      - name: NQ sample importer unit tests
+        run: python -m unittest discover -s scripts/market-data -p "test_nq_sample_import.py" -v
+
+      - name: Offline NQ sample importer CLI smoke test
+        run: python3 scripts/market-data/nq_sample_import.py --help
+
       - name: Offline market-data importer CLI smoke test
         run: bun run market-data:import -- --help
 
