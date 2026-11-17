@@ -10,6 +10,7 @@ import {
   CrosshairMode,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type CandlestickData,
   type HistogramData,
   type UTCTimestamp,
@@ -17,6 +18,7 @@ import {
   type Time,
 } from "lightweight-charts";
 import type { Bar } from "@/lib/engine/types";
+import type { PriorUtcDateLevels } from "@/lib/engine/market-structure";
 
 export interface ChartMarker {
   time: number; // ms epoch
@@ -63,12 +65,14 @@ function normalizeBars(input: Bar[]): Bar[] {
 export function MiniChart({
   bars,
   markers,
+  priorUtcDateLevels,
   height,
   decimals = 2,
   chartId,
 }: {
   bars: Bar[];
   markers?: ChartMarker[];
+  priorUtcDateLevels?: PriorUtcDateLevels | null;
   height?: number | string;
   decimals?: number;
   chartId?: string;
@@ -78,6 +82,7 @@ export function MiniChart({
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const markersRef = useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
+  const priorDateLinesRef = useRef<IPriceLine[]>([]);
   const hasFitContentRef = useRef(false);
   const [ready, setReady] = useState(false);
 
@@ -149,6 +154,7 @@ export function MiniChart({
       candleRef.current = null;
       volumeRef.current = null;
       markersRef.current = null;
+      priorDateLinesRef.current = [];
     };
   }, []);
 
@@ -195,6 +201,39 @@ export function MiniChart({
       markersRef.current.setMarkers([]);
     }
   }, [bars, markers, ready]);
+
+  useEffect(() => {
+    const candle = candleRef.current;
+    if (!candle || !ready) return;
+
+    for (const line of priorDateLinesRef.current) candle.removePriceLine(line);
+    priorDateLinesRef.current = [];
+
+    if (priorUtcDateLevels) {
+      const highLine = candle.createPriceLine({
+        price: priorUtcDateLevels.high,
+        color: "#d5a85c",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "PRIOR UTC HIGH",
+      });
+      const lowLine = candle.createPriceLine({
+        price: priorUtcDateLevels.low,
+        color: "#7299c7",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "PRIOR UTC LOW",
+      });
+      priorDateLinesRef.current = [highLine, lowLine];
+    }
+
+    return () => {
+      for (const line of priorDateLinesRef.current) candle.removePriceLine(line);
+      priorDateLinesRef.current = [];
+    };
+  }, [priorUtcDateLevels, ready]);
 
   return (
     <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"} style={height ? { height } : undefined}>
