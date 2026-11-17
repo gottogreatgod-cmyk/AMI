@@ -54,6 +54,7 @@ function ChartCard({
   onSymbolChange,
   onTfChange,
   priceDecimals,
+  refreshKey,
 }: {
   slot: ChartSlot;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
@@ -62,10 +63,12 @@ function ChartCard({
   onSymbolChange: (symbol: string) => void;
   onTfChange: (tf: Timeframe) => void;
   priceDecimals: number;
+  refreshKey: number;
 }) {
-  const { data, loading } = usePolling<CandlesResponse>(
+  const { data, error, loading } = usePolling<CandlesResponse>(
     `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`,
-    60_000
+    60_000,
+    refreshKey
   );
   const last = data?.bars?.[data.bars.length - 1];
   const q = data?.quality;
@@ -127,10 +130,14 @@ function ChartCard({
         <MiniChart bars={data?.bars ?? []} decimals={priceDecimals} chartId={`${slot.symbol}-${slot.tf}`} />
       </div>
       <div className="h-[20px] border-t border-[#1d2c38] flex items-center justify-between px-2 text-[8.5px] text-[#748999]">
-        <span className="truncate">
-          {q
-            ? `${q.provider.toUpperCase()} · ${q.bars} closed bars${q.resampledFrom ? ` · agg from ${q.resampledFrom}` : ""}`
-            : "…"}
+        <span className="truncate" title={error ?? q?.note ?? undefined}>
+          {error
+            ? (data ? "STALE · " : "ERROR · ") + error
+            : q
+              ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
+              : loading
+                ? "FETCHING CLOSED BARS…"
+                : "WAITING FOR PROVIDER"}
         </span>
         <span
           className={cn(
@@ -153,12 +160,14 @@ export function DeskPanel({
   symbols,
   focusSymbol,
   onFocus,
+  refreshKey = 0,
 }: {
   slots: ChartSlot[];
   onSlotsChange: (slots: ChartSlot[]) => void;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
   focusSymbol: string;
   onFocus: (symbol: string) => void;
+  refreshKey?: number;
 }) {
   const preset = slots.length; // layout preset is derived from the slot count
   const decimalsOf = (symbol: string) => symbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
@@ -205,7 +214,7 @@ export function DeskPanel({
       <div className={cn("grid gap-1.5 p-1.5 flex-1 min-h-0", gridClass)}>
         {slots.map((slot, i) => (
           <ChartCard
-            key={i}
+            key={String(i) + "-" + slot.symbol + "-" + slot.tf}
             slot={slot}
             symbols={symbols}
             onFocus={() => onFocus(slot.symbol)}
@@ -222,6 +231,7 @@ export function DeskPanel({
               onSlotsChange(next);
             }}
             priceDecimals={decimalsOf(slot.symbol)}
+            refreshKey={refreshKey}
           />
         ))}
       </div>
