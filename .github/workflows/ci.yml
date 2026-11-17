@@ -50,5 +50,8 @@ jobs:
       - name: Deterministic unit and engine tests
         run: bun test
 
+      - name: Offline market-data importer CLI smoke test
+        run: bun run market-data:import -- --help
+
       - name: Production build
         run: bun run build
