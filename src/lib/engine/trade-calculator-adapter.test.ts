@@ -28,6 +28,17 @@ describe("canonical instrument risk economics adapter", () => {
     expect(economics?.contract.status).toBe("UNVERIFIED");
   });
 
+  test("NQZ6 static contract economics are verified but unknown costs and margin still block sizing", () => {
+    const economics = getInstrumentRiskEconomics("NQZ6", "USD");
+    expect(economics?.contract.status).toBe("VERIFIED");
+    expect(economics?.contract.tickSize).toBe(0.25);
+    expect(economics?.contract.quantityIncrement).toBe(1);
+    expect(economics?.contract.pnlCurrencyPerPointPerUnit).toBe(20);
+    expect(economics?.contract.notionalMultiplier).toBe(20);
+    expect(economics?.costs.status).toBe("UNVERIFIED");
+    expect(economics?.margin.status).toBe("UNVERIFIED");
+  });
+
   test("same-currency account conversion is explicitly one-to-one", () => {
     const economics = getInstrumentRiskEconomics("XAUUSD-DUKA", "USD");
     expect(economics?.currencyConversion).toEqual({
