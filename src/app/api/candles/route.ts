@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         toTs: last?.ct ?? 0,
         requestedDays: Math.max(0, (rangeTo - rangeFrom) / 86_400_000),
         coveredDays: Math.round(coveredDays),
-        coverage: loaded.manifest.quality.qualityStatus === "PASS" ? "FULL" : "PARTIAL",
+        coverage: "PARTIAL",
         session: loaded.manifest.instrument.dataClass === "BROKER_CFD" ? "index" : "forex",
         resampledFrom: null,
         gapsDetected: loaded.manifest.quality.unclassifiedGaps,
