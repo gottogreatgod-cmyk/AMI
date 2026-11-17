@@ -98,6 +98,7 @@ describe("persistent opportunity store", () => {
       where: { opportunityId: first.opportunityId },
     });
     expect(rows).toHaveLength(1);
+    expect(events).toHaveLength(1);
   });
 
   test("persists lifecycle transitions as separate append-only sequence rows", async () => {
@@ -208,7 +209,8 @@ describe("persistent opportunity store", () => {
 
     expect(first.created).toBe(true);
     expect(second.created).toBe(true);
-    expect(first.snapshot.candidate.id).toBe(second.opportunityId);
+    expect(first.snapshot.candidate.id).toBe(second.snapshot.candidate.id);
+    expect(first.opportunityId).not.toBe(second.opportunityId);
     expect(await listPersistentOpportunities(firstUser)).toHaveLength(1);
     expect(await listPersistentOpportunities(secondUser)).toHaveLength(1);
   });
