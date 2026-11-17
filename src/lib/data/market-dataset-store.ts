@@ -366,6 +366,7 @@ export async function loadMarketDataset(
     manifest.requestedRange.from,
     manifest.requestedRange.toExclusive,
     manifest.pricing.downloadedSide,
+    "meta" + manifest.instrument.metadataVersion,
     manifest.volume.units ?? "no-volume",
     rawHash.slice(0, 8),
     normalizedHash.slice(0, 12),
