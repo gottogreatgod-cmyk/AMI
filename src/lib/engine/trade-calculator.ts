@@ -29,11 +29,15 @@ export interface TradeSizingInput {
   availableMargin: number;
   maxLeverage: number;
   direction: "long" | "short";
-  /** Already side-adjusted: long entry at ask / exits at bid; short inverse. */
-  entryExecutionPrice: number;
-  stopExecutionPrice: number;
-  targetExecutionPrice: number;
-  executionPriceBasis: "SIDE_AWARE_EXECUTABLE" | "MID_OR_UNKNOWN";
+  /** Quote pairs at entry, stop and target. Crossed or invalid pairs are rejected. */
+  quotes: {
+    entryBid: number;
+    entryAsk: number;
+    stopBid: number;
+    stopAsk: number;
+    targetBid: number;
+    targetAsk: number;
+  };
   minimumNetRewardRisk?: number;
 }
 
@@ -115,9 +119,6 @@ export function calculateTradeSize(
   if (economics.margin.status !== "VERIFIED") {
     reasons.push("INITIAL_MARGIN_REQUIREMENT_UNVERIFIED");
   }
-  if (input.executionPriceBasis !== "SIDE_AWARE_EXECUTABLE") {
-    reasons.push("SIDE_AWARE_EXECUTABLE_PRICES_REQUIRED");
-  }
 
   const { tickSize, quantityIncrement, pnlCurrencyPerPointPerUnit, notionalMultiplier } =
     economics.contract;
@@ -146,13 +147,16 @@ export function calculateTradeSize(
     reasons.push("INITIAL_MARGIN_MODEL_MISSING_OR_AMBIGUOUS");
   }
 
-  const prices = [
-    input.entryExecutionPrice,
-    input.stopExecutionPrice,
-    input.targetExecutionPrice,
-  ];
-  if (!prices.every((price) => Number.isFinite(price) && price > 0)) {
-    reasons.push("EXECUTION_PRICES_INVALID");
+  const quoteValues = Object.values(input.quotes);
+  if (!quoteValues.every((price) => Number.isFinite(price) && price > 0)) {
+    reasons.push("EXECUTION_QUOTES_INVALID");
+  }
+  if (
+    input.quotes.entryBid > input.quotes.entryAsk ||
+    input.quotes.stopBid > input.quotes.stopAsk ||
+    input.quotes.targetBid > input.quotes.targetAsk
+  ) {
+    reasons.push("EXECUTION_QUOTES_CROSSED");
   }
 
   if (
@@ -182,9 +186,11 @@ export function calculateTradeSize(
   const costBps = (commissionBpsPerSide as number) + (slippageBpsPerSide as number);
   const verifiedMarginRate = hasMarginRate ? marginRate as number : null;
   const verifiedMarginPerUnit = hasMarginPerUnit ? marginPerUnit as number : null;
-  const entry = input.entryExecutionPrice;
-  const stop = input.stopExecutionPrice;
-  const target = input.targetExecutionPrice;
+  // A long opens at ask and liquidates at bid. A short opens at bid and
+  // liquidates at ask. Each quote pair is supplied at its respective level.
+  const entry = input.direction === "long" ? input.quotes.entryAsk : input.quotes.entryBid;
+  const stop = input.direction === "long" ? input.quotes.stopBid : input.quotes.stopAsk;
+  const target = input.direction === "long" ? input.quotes.targetBid : input.quotes.targetAsk;
 
   if (
     !tickAligned(entry, tick) ||
@@ -278,8 +284,10 @@ export function calculateTradeSize(
     effectiveRiskPercent: estimatedWorstCaseStopLoss / input.accountEquity * 100,
     executionPriceBasis: "SIDE_AWARE_EXECUTABLE",
     assumptions: [
-      "Instrument contract economics and cost fields were supplied with VERIFIED status.",
-      "Entry, stop and target are side-aware executable price estimates; spread is expected to be embedded in those prices.",
+      "Instrument contract economics, execution costs and initial margin were supplied with VERIFIED status.",
+      input.direction === "long"
+        ? "Long entry uses entry ASK; stop and target exits use their respective BID quotes."
+        : "Short entry uses entry BID; stop and target exits use their respective ASK quotes.",
       "Commission and slippage are charged on both entry and exit legs.",
       "Quantity is rounded down to the verified quantity increment.",
       "Initial margin uses the verified instrument margin rate or per-unit requirement supplied with the contract economics.",
