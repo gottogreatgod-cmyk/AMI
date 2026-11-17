@@ -55,12 +55,10 @@ export function assessMarketDatasetUse(
   };
 
   const backtestReasons: string[] = [];
-  if (manifest.pricing.datasetPriceSide !== "paired-mid") {
-    backtestReasons.push(
-      "This revision contains only " + manifest.pricing.datasetPriceSide.toUpperCase() +
-      " candles. Backtest execution requires a verified bid/ask-paired dataset."
-    );
-  }
+  backtestReasons.push(
+    "This revision contains only " + manifest.pricing.datasetPriceSide.toUpperCase() +
+    " candles. Backtest execution requires a verified bid/ask-paired dataset."
+  );
   if (!metadata || metadata.costs.status !== "VERIFIED") {
     backtestReasons.push("Instrument-specific spread, fees, slippage and financing costs are not verified.");
   }
