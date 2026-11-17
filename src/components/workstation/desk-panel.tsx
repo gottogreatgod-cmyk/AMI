@@ -127,6 +127,7 @@ function ChartCard({
   refreshKey,
   datasets,
   includeReview,
+  onDatasetChange,
 }: {
   slot: ChartSlot;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
