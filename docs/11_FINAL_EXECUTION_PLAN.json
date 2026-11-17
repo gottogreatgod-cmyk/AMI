@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #236 green on 17 Nov 2026: lint, strict typecheck, 78 Bun tests across 11 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #245 green on 17 Nov 2026: lint, strict typecheck, 88 Bun tests across 12 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -273,7 +273,7 @@
     {
       "id": "FTC-400",
       "name": "Explainable opportunity lifecycle",
-      "status": "not_started",
+      "status": "Pure opportunity lifecycle reducer implemented and tested: WATCH, NEAR_TRIGGER, TRIGGERED, INVALIDATED, EXPIRED and SUPPRESSED; append-only transition events; stale/data/HTF gates; conservative same-bar invalidation priority; duplicate/out-of-order closed-bar idempotency. Candidate sourcing, persistence and UI/API integration pending",
       "dependsOn": [
         "FTC-210",
         "FTC-310"
@@ -476,7 +476,8 @@
       "Operation capability policy distinguishes PASS/REVIEW chart and side-specific signal research from backtesting; single-side bid/ask history cannot unlock strategy backtests, paper execution or live routing",
       "Chart data source is persisted per panel by exact immutable dataset ID; changing back to provider feed clears the old local chart data immediately",
       "Observed prior available UTC calendar-date high/low overlay: uses only observed closed bars, skips missing dates without synthetic fill, labels provenance date and observed bar count, and does not claim exchange-session semantics",
-      "Separate displacement-origin DEMAND/SUPPLY zone engine with ATR-normalized base compression and closed-bar impulse confirmation; tracks retest/invalidation, rejects unexplained candle gaps, and exposes latest non-invalidated zone boundaries in the optional chart ZONES overlay"
+      "Separate displacement-origin DEMAND/SUPPLY zone engine with ATR-normalized base compression and closed-bar impulse confirmation; tracks retest/invalidation, rejects unexplained candle gaps, and exposes latest non-invalidated zone boundaries in the optional chart ZONES overlay",
+      "Pure opportunity lifecycle state machine with required timestamped evidence, WATCH/NEAR_TRIGGER/TRIGGERED/INVALIDATED/EXPIRED/SUPPRESSED states, append-only transition events, stale/data/HTF suppression and resume, invalidation-first same-bar safety priority, and duplicate/out-of-order observation idempotency"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -488,7 +489,8 @@
       "Walk-forward/locked holdout research, paper OMS and forward certification remain pending",
       "Structure overlays do not yet include verified exchange/broker session levels or volume-qualified session VWAP; displacement-origin zones are heuristic chart research, not order-flow evidence",
       "Experimental monitor has not yet been run against the provider in a local environment; availability, current-rate cadence and provider terms remain unverified",
-      "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay"
+      "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay",
+      "Opportunity candidates are not yet generated automatically from live signals/zones, persisted in the database, deduplicated across workers, surfaced in the UI/API or connected to a paper OMS"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -498,11 +500,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 236,
+      "latestFullyGreenRun": 245,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 78,
-      "testFiles": 11,
+      "tests": 88,
+      "testFiles": 12,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
