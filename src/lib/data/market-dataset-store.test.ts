@@ -46,14 +46,20 @@ async function createFixture(args: {
 } = {}) {
   const root = await mkdtemp(join(tmpdir(), "ami-dataset-store-"));
   tempRoots.push(root);
-  const parsed = parseDukascopyCsv(args.source ?? sourceCsv, options);
-  if (args.quality) parsed.diagnostics.qualityStatus = args.quality;
+  let rawSource = args.source ?? sourceCsv;
+  if (!args.source && args.quality === "REVIEW") {
+    rawSource += "\\n" + (timestamp0 + HOUR) + ",2051,2053,2050,2052,125";
+  }
+  if (!args.source && args.quality === "REJECTED") {
+    rawSource += "\\n" + (timestamp0 + 2 * HOUR) + ",2050,2040,2049,2051,10";
+  }
+  const parsed = parseDukascopyCsv(rawSource, options);
   const normalized = args.normalized ?? serializeNormalizedBars(parsed.bars);
   const manifest = await createMarketDatasetManifest({
     options,
     parsed,
     sourceFileName: "xauusd-h1-bid.csv",
-    rawCsv: args.source ?? sourceCsv,
+    rawCsv: rawSource,
     normalizedCsv: normalized,
     importedAt: "2024-01-04T00:00:00.000Z",
   });
@@ -61,7 +67,7 @@ async function createFixture(args: {
   manifest.datasetId = datasetId;
   const directory = join(root, "xauusd-duka", "h1", datasetId);
   await mkdir(directory, { recursive: true });
-  await writeFile(join(directory, "source.csv"), args.source ?? sourceCsv);
+  await writeFile(join(directory, "source.csv"), rawSource);
   await writeFile(join(directory, "normalized.csv"), normalized);
   await writeFile(join(directory, "manifest.json"), JSON.stringify(manifest, null, 2));
   return { root, directory, manifest, normalized };
@@ -148,6 +154,15 @@ describe("verified local market dataset store", () => {
       .rejects.toBeInstanceOf(DatasetStoreError);
     await expect(loadMarketDataset("not-a-supported-market-id", { rootDir: tmpdir() }))
       .rejects.toMatchObject({ code: "DATASET_NOT_FOUND" });
+  });
+
+  test("rejects a manifest that relabels duplicate source bars as PASS", async () => {
+    const fixture = await createFixture({ quality: "REVIEW" });
+    fixture.manifest.quality.qualityStatus = "PASS";
+    await writeFile(join(fixture.directory, "manifest.json"), JSON.stringify(fixture.manifest, null, 2));
+
+    await expect(loadMarketDataset(fixture.manifest.datasetId, { rootDir: fixture.root }))
+      .rejects.toMatchObject({ code: "QUALITY_MISMATCH" });
   });
 
   test("rejects manifest instrument class/provider substitution", async () => {
