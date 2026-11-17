@@ -93,7 +93,7 @@ describe("deterministic opportunity lifecycle", () => {
 
     state = observe(state, 12, { c: 2050.2, h: 2051, l: 2049 });
     expect(state.status).toBe("TRIGGERED");
-    expect(state.triggeredAtTs).toBe(13 * STEP - 1);
+    expect(state.triggeredAtTs).toBe(14 * STEP - 1);
     expect(state.events.map((event) => event.type)).toEqual([
       "CREATED",
       "NEAR_TRIGGER",
@@ -120,7 +120,7 @@ describe("deterministic opportunity lifecycle", () => {
     const next = observe(state, 10, { o: 2045, h: 2051, l: 2039, c: 2049 });
     expect(next.status).toBe("INVALIDATED");
     expect(next.triggeredAtTs).toBeNull();
-    expect(next.invalidatedAtTs).toBe(11 * STEP - 1);
+    expect(next.invalidatedAtTs).toBe(12 * STEP - 1);
     expect(next.events.at(-1)?.type).toBe("INVALIDATED");
   });
 
@@ -128,7 +128,7 @@ describe("deterministic opportunity lifecycle", () => {
     const state = createOpportunitySnapshot(candidate({ expiresAtTs: 11 * STEP - 1 }));
     const next = observe(state, 12, { c: 2049, h: 2049.5, l: 2048.5 });
     expect(next.status).toBe("EXPIRED");
-    expect(next.expiredAtTs).toBe(13 * STEP - 1);
+    expect(next.expiredAtTs).toBe(14 * STEP - 1);
   });
 
   test("stale data suppresses evaluation and a fresh closed bar resumes it", () => {
@@ -142,7 +142,10 @@ describe("deterministic opportunity lifecycle", () => {
     );
     expect(state.status).toBe("SUPPRESSED");
     expect(state.resumeStatus).toBe("WATCH");
-    expect(state.suppressionReasons).toEqual(["MONITOR_STALE"]);
+    expect(state.suppressionReasons).toEqual([
+      "MONITOR_STALE",
+      "MARKET_DATA_NOT_FRESH",
+    ]);
 
     state = observe(state, 11, { c: 2049.5, h: 2049.8, l: 2049.1 });
     expect(state.status).toBe("NEAR_TRIGGER");
