@@ -61,8 +61,10 @@ def parse_sha256sums(raw: bytes) -> dict[str, str]:
         filename = filename.lstrip("*").strip()
         if not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
             raise ImportErrorDetail("Invalid SHA-256 in SHA256SUMS for " + filename)
-        if "/" in filename or "\\" in filename or filename in {".", ".."}:
+        safe_path = PurePosixPath(filename)
+        if safe_path.is_absolute() or ".." in safe_path.parts or not safe_path.name:
             raise ImportErrorDetail("Unsafe source filename in SHA256SUMS.")
+        filename = safe_path.name
         if filename in result:
             raise ImportErrorDetail("Duplicate filename in SHA256SUMS: " + filename)
         result[filename] = digest.lower()
