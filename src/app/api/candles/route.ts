@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getBars } from "@/lib/data/providers";
 import { DatasetStoreError, loadMarketDataset } from "@/lib/data/market-dataset-store";
+import { assessMarketDatasetUse } from "@/lib/data/market-dataset-policy";
 import type { DataQuality, Timeframe } from "@/lib/engine/types";
 import { getInstrument } from "@/lib/data/instruments";
 import { requireSession, badRequest, serverError } from "@/lib/api";
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
           rawSha256: loaded.manifest.provenance.rawSha256,
           normalizedSha256: loaded.manifest.provenance.normalizedSha256,
         },
+        operationPolicy: assessMarketDatasetUse(loaded.manifest, { allowReview }),
       });
     }
 
