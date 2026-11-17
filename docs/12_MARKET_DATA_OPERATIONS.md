@@ -13,7 +13,34 @@ Supported primary identities:
 
 Never feed these datasets into a calculator that assumes CME NQ/GC contract values. The import manifest keeps the provider instrument and data class attached to every dataset.
 
-## 1. Download a source CSV
+## 1. Download and import with one command
+
+The recommended path uses AMI's downloader orchestrator. It pins dukascopy-node 1.51.1, requests UTC CSV candles with volume, uses the local cache, applies conservative batch pacing and retry limits, downloads bid and ask sequentially by default, and imports each side into a separate immutable dataset directory.
+
+~~~bash
+bun run market-data:download -- \
+  --instrument XAUUSD-DUKA \
+  --timeframe h1 \
+  --from 2024-01-01 \
+  --to 2024-02-01 \
+  --price-side both \
+  --volume-units units
+~~~
+
+Use NAS100-DUKA for the USA 100 Technical Index CFD. The command maps that AMI ID to Dukascopy instrument usatechidxusd. It does not map it to CME NQ. Choose a manageable date window first; start with H1/D1, then use M15/M5 when needed.
+
+Options include --price-side bid or ask for one side, --include-flats to request zero-volume candles, --no-cache to disable the downloader cache, and --batch-size/--batch-pause-ms/--request-interval-ms to tune request pacing. The command never routes orders and does not activate an AMI chart provider.
+
+## 1.1 Manual source download (optional)
+
+The pinned underlying CLI can also be run directly when you want to download a CSV separately. It writes into download/ by default; use -dir and -fn to choose the output directory and file name. For example:
+
+~~~bash
+bunx dukascopy-node@1.51.1 -i xauusd -from 2024-01-01 -to 2024-02-01 -t m15 -p bid -f csv -v -vu units -ch -r 3 -bp 1500
+~~~
+
+The documented CLI uses UTC epoch-millisecond candle timestamps. The end date is exclusive. Volume is omitted unless -v is specified; -vu selects its units. The supported timeframes include m1, m5, m15, m30, h1, h4 and d1.
+
 
 The documented Dukascopy CLI creates CSV exports using UTC epoch-millisecond candle timestamps. Use a separate download for each quote side. Volume is omitted unless -v is specified; -vu selects its units. The documented timeframes include m1, m5, m15, m30, h1, h4 and d1. The download end date is exclusive.
 
