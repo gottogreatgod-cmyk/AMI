@@ -92,6 +92,10 @@ class NqSampleImportTests(unittest.TestCase):
             parsed["NQZ6_ticks.parquet"],
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         )
+        nested = parse_sha256sums(
+            b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  pack/NQZ6_ticks.parquet\\n"
+        )
+        self.assertEqual(nested["NQZ6_ticks.parquet"], parsed["NQZ6_ticks.parquet"])
         with self.assertRaisesRegex(ImportErrorDetail, "Unsafe"):
             parse_sha256sums(
                 b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  ../outside.parquet\n"
