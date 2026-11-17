@@ -203,6 +203,17 @@ function assertManifestIdentity(
     manifest.interval.timestampMeaning !== "BAR_OPEN_TIME_UTC" ||
     manifest.interval.closeTimestampMeaning !== "BAR_CLOSE_TIME_UTC_INCLUSIVE" ||
     manifest.pricing.datasetPriceSide !== manifest.pricing.downloadedSide ||
+    manifest.pricing.quoteCurrency !== metadata.quoteCurrency ||
+    manifest.pricing.recommendedAnalysisMethod !== (metadata.analysisPriceSide === "MID" ? "PAIRED_MID" : metadata.analysisPriceSide) ||
+    manifest.provenance.dataUseClassification !== metadata.dataUse.classification ||
+    manifest.provenance.dataUseNote !== metadata.dataUse.note ||
+    manifest.provenance.sourceTimezone !== "UTC" ||
+    manifest.provenance.importer !== "ami-dukascopy-csv-importer" ||
+    manifest.provenance.importerVersion !== 1 ||
+    manifest.quality.calendar !== metadata.session.calendar ||
+    manifest.quality.calendarVerified !== metadata.session.hoursVerified ||
+    manifest.quality.gapPolicy !== "REPORT_ONLY_NO_SYNTHETIC_BARS" ||
+    manifest.quality.gapThresholdMs !== DUKASCOPY_TIMEFRAME_MS[expectedTimeframe] * 2 ||
     (manifest.pricing.downloadedSide !== "bid" && manifest.pricing.downloadedSide !== "ask")
   ) {
     throw new DatasetStoreError(
@@ -340,6 +351,18 @@ export async function loadMarketDataset(
   const normalizedHash = await sha256Hex(normalizedCsv);
   if (normalizedHash !== manifest.provenance.normalizedSha256) {
     throw new DatasetStoreError("NORMALIZED_HASH_MISMATCH", "Normalized CSV SHA-256 does not match the manifest.");
+  }
+  const expectedDatasetId = [
+    identity.instrumentId.toLowerCase(),
+    identity.timeframe,
+    manifest.requestedRange.from,
+    manifest.requestedRange.toExclusive,
+    manifest.pricing.downloadedSide,
+    rawHash.slice(0, 8),
+    normalizedHash.slice(0, 12),
+  ].join("-");
+  if (expectedDatasetId !== datasetId) {
+    throw new DatasetStoreError("MANIFEST_INVALID", "Dataset ID does not match its source/normalized file hashes and import parameters.");
   }
 
   const bars = parseNormalizedCsv(normalizedCsv, manifest);
