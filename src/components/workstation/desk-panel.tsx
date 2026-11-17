@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MiniChart, type ChartMarker } from "./mini-chart";
+import { MiniChart } from "./mini-chart";
+import { buildStructureMarkers } from "@/lib/engine/market-structure";
 import { usePolling, fmtPrice } from "./hooks";
 import type { Bar, DataQuality, Timeframe } from "@/lib/engine/types";
 import {
@@ -110,6 +111,7 @@ function ChartCard({
   refreshKey: number;
 }) {
   const [selectedDatasetId, setSelectedDatasetId] = useState("provider");
+  const [showStructure, setShowStructure] = useState(false);
   const selectableDatasets = useMemo(
     () => datasets.filter((dataset) =>
       (dataset.qualityStatus === "PASS" || (includeReview && dataset.qualityStatus === "REVIEW")) &&
@@ -142,6 +144,10 @@ function ChartCard({
   const last = visibleBars[visibleBars.length - 1];
   const q = dataMatchesSelection ? data?.quality : undefined;
   const chartDecimals = selectedDataset ? 2 : priceDecimals;
+  const structureMarkers = useMemo(
+    () => showStructure ? buildStructureMarkers(visibleBars) : [],
+    [showStructure, visibleBars]
+  );
 
   return (
     <article
@@ -159,6 +165,19 @@ function ChartCard({
           </span>
         </button>
         <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowStructure((value) => !value)}
+            aria-pressed={showStructure}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              showStructure ? "text-[#4bc39a] bg-[#123025]" : "text-[#8193a3]"
+            )}
+            title="Confirmed closed-bar BOS and CHoCH markers only"
+          >
+            STRUCTURE {showStructure ? "ON" : "OFF"}
+          </Button>
           <Select
             value={selectedDataset?.datasetId ?? "provider"}
             onValueChange={setSelectedDatasetId}
@@ -223,6 +242,7 @@ function ChartCard({
       <div className="flex-1 min-h-0 px-1 pb-1">
         <MiniChart
           bars={visibleBars}
+          markers={structureMarkers}
           decimals={chartDecimals}
           chartId={`${chartSymbol}-${chartTf}-${selectedDataset?.datasetId ?? "provider"}`}
         />
