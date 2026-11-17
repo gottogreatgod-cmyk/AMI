@@ -22,7 +22,7 @@ import sys
 import tempfile
 import zipfile
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 
@@ -177,6 +177,13 @@ def _read_parquet_columns(raw: bytes, required: set[str], label: str):
         raise ImportErrorDetail(label + " timestamp column must be Parquet timestamp[ns, UTC].")
     if timestamp_type.tz not in {"UTC", "Etc/UTC", "utc"}:
         raise ImportErrorDetail(label + " timestamp column must declare UTC timezone.")
+    for integer_column in ({"volume", "trade_count"} if "volume" in required else set()):
+        if not pa.types.is_integer(table.schema.field(integer_column).type):
+            raise ImportErrorDetail(label + " " + integer_column + " must use an integer Parquet type.")
+    if label == "NQ tick":
+        for integer_column in ("bid_sz", "ask_sz"):
+            if not pa.types.is_integer(table.schema.field(integer_column).type):
+                raise ImportErrorDetail(label + " " + integer_column + " must use an integer Parquet type.")
     ts_values = table.column("ts").cast(pa.int64()).to_pylist()
     return table, ts_values
 
@@ -282,20 +289,31 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
     if not CONTRACT_PATTERN.fullmatch(contract):
         raise ImportErrorDetail("Contract must be an explicit NQ month code such as NQZ6.")
 
-    archive_bytes = archive_path.read_bytes()
-    archive_sha = sha256_bytes(archive_bytes)
+    archive_sha_hash = hashlib.sha256()
+    with archive_path.open("rb") as archive_file:
+        for chunk in iter(lambda: archive_file.read(1024 * 1024), b""):
+            archive_sha_hash.update(chunk)
+    archive_sha = archive_sha_hash.hexdigest()
     if expected_zip_sha256 and archive_sha.lower() != expected_zip_sha256.lower():
         raise ImportErrorDetail("Archive SHA-256 does not match --expected-zip-sha256.")
 
     try:
-        with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
-            names = set(archive.namelist())
-            if any("/" in name or "\\" in name or name in {".", ".."} for name in names):
-                raise ImportErrorDetail("Sample archive contains unexpected path entries.")
-            if "manifest.json" not in names or "SHA256SUMS" not in names:
+        with zipfile.ZipFile(archive_path) as archive:
+            members: dict[str, str] = {}
+            for member in archive.namelist():
+                member_path = PurePosixPath(member)
+                if member_path.is_absolute() or ".." in member_path.parts:
+                    raise ImportErrorDetail("Sample archive contains an unsafe path entry.")
+                if member.endswith("/"):
+                    continue
+                basename = member_path.name
+                if basename in members:
+                    raise ImportErrorDetail("Sample archive contains duplicate basenames: " + basename)
+                members[basename] = member
+            if "manifest.json" not in members or "SHA256SUMS" not in members:
                 raise ImportErrorDetail("Sample archive must include manifest.json and SHA256SUMS.")
-            source_manifest_raw = archive.read("manifest.json")
-            checksums_raw = archive.read("SHA256SUMS")
+            source_manifest_raw = archive.read(members["manifest.json"])
+            checksums_raw = archive.read(members["SHA256SUMS"])
             sample_manifest = json.loads(source_manifest_raw)
             checksums = parse_sha256sums(checksums_raw)
             if sample_manifest.get("schema") != PACK_SCHEMA:
@@ -331,12 +349,12 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
             bar_name = bar_meta["name"]
             minute_volume_name = minute_volume_meta["name"]
             for name in (tick_name, bar_name, minute_volume_name):
-                if name not in names or name not in checksums:
+                if name not in members or name not in checksums:
                     raise ImportErrorDetail("Sample archive is missing a checksummed NQ source file: " + name)
 
-            tick_raw = archive.read(tick_name)
-            bar_raw = archive.read(bar_name)
-            minute_volume_raw = archive.read(minute_volume_name)
+            tick_raw = archive.read(members[tick_name])
+            bar_raw = archive.read(members[bar_name])
+            minute_volume_raw = archive.read(members[minute_volume_name])
             source_bytes = {
                 tick_name: tick_raw,
                 bar_name: bar_raw,
