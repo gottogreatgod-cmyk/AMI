@@ -94,7 +94,7 @@ export function normalizeMonitorCandles(
     .filter((row) =>
       Number.isInteger(row.timestamp) &&
       row.timestamp > 0 &&
-      row.timestamp <= now + timeframeMs &&
+      row.timestamp <= now &&
       row.open > 0 &&
       row.high > 0 &&
       row.low > 0 &&
@@ -127,7 +127,14 @@ export function normalizeMonitorCandles(
 }
 
 /** Normalize the latest two-sided quote. No trade or OHLC is inferred from a tick. */
-export function normalizeMonitorTick(input: unknown): MonitorTick | null {
+export function normalizeMonitorTick(
+  input: unknown,
+  now = Date.now(),
+  maxFutureSkewMs = 10_000
+): MonitorTick | null {
+  if (!Number.isFinite(now) || !Number.isFinite(maxFutureSkewMs) || maxFutureSkewMs < 0) {
+    return null;
+  }
   if (!Array.isArray(input)) return null;
   const rows = input
     .map((row) => {
@@ -157,6 +164,7 @@ export function normalizeMonitorTick(input: unknown): MonitorTick | null {
       row.ask !== null &&
       row.bid !== null &&
       row.timestamp > 0 &&
+      row.timestamp <= now + maxFutureSkewMs &&
       row.ask > 0 &&
       row.bid > 0 &&
       row.ask >= row.bid
