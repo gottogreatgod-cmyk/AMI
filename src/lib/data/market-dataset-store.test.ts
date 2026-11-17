@@ -177,6 +177,15 @@ describe("verified local market dataset store", () => {
       .rejects.toMatchObject({ code: "QUALITY_MISMATCH" });
   });
 
+  test("rejects volume-unit metadata not present in the importer contract", async () => {
+    const fixture = await createFixture();
+    fixture.manifest.volume.units = "lots" as never;
+    await writeFile(join(fixture.directory, "manifest.json"), JSON.stringify(fixture.manifest, null, 2));
+
+    await expect(loadMarketDataset(fixture.manifest.datasetId, { rootDir: fixture.root }))
+      .rejects.toMatchObject({ code: "QUALITY_MISMATCH" });
+  });
+
   test("rejects manifest instrument class/provider substitution", async () => {
     const fixture = await createFixture();
     fixture.manifest.instrument.dataClass = "EXCHANGE_FUTURES";
