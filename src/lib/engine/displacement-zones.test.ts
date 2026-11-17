@@ -138,6 +138,12 @@ describe("causal displacement-origin zones", () => {
     expect(buildDisplacementZones(invalid, settings)).toHaveLength(0);
   });
 
+  test("does not create a zone when an invalid or missing candle creates a gap", () => {
+    const source = bars(demandBase);
+    const withMissingBaseCandle = source.filter((_, index) => index !== 3);
+    expect(buildDisplacementZones(withMissingBaseCandle, settings)).toEqual([]);
+  });
+
   test("bounds retained zone history to maxZones", () => {
     const source = bars([
       ...demandBase,
