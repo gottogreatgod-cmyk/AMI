@@ -243,7 +243,7 @@ export interface DataQuality {
   testWindowDays?: number;
   warmupDaysConsumed?: number;
   coverage: "FULL" | "PARTIAL" | "PROVIDER_LIMIT" | "INSUFFICIENT";
-  session: "24/7" | "futures" | "forex" | "index";
+  session: "24/7" | "futures" | "forex" | "index" | "metals";
   resampledFrom?: Timeframe | null;
   gapsDetected: number;
   fetchedAt: number;
