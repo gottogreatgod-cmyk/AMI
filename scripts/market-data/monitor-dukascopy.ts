@@ -142,25 +142,11 @@ async function main() {
     ") every " + pollSeconds + "s. Ctrl+C stops the monitor.\n"
   );
   const workerArgs = [process.execPath, "run", workerPath];
-  if (args.includes("--once")) {
-    const onceWorker = await Bun.file(workerPath).text();
-    const transformed = onceWorker.replace(
-      "while (!stopping) {",
-      "while (!stopping) {"
-    );
-    await Bun.write(workerPath, transformed);
-    const child = Bun.spawn(workerArgs, {
-      cwd: runtimeDir,
-      env: { ...process.env, ...env, AMI_MONITOR_ONCE: "1" },
-      stdin: "inherit",
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-    const code = await child.exited;
-    if (code !== 0) throw new Error("Monitor one-shot failed with exit code " + code);
-  } else {
-    await runCommand(workerArgs, runtimeDir, env);
-  }
+  await runCommand(
+    workerArgs,
+    runtimeDir,
+    args.includes("--once") ? { ...env, AMI_MONITOR_ONCE: "1" } : env
+  );
 }
 
 main().catch((error: unknown) => {
