@@ -64,10 +64,12 @@ export function usePolling<T>(url: string | null, intervalMs: number, refreshKey
         }
       } finally {
         clearTimeout(timeout);
-        if (activeController === controller) activeController = null;
-        if (alive) {
-          setLoading(false);
-          if (!authExpired) timer = setTimeout(() => void tick(), intervalMs);
+        if (activeController === controller) {
+          activeController = null;
+          if (alive) {
+            setLoading(false);
+            if (!authExpired) timer = setTimeout(() => void tick(), intervalMs);
+          }
         }
       }
     }
