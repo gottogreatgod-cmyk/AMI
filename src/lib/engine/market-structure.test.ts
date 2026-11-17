@@ -81,6 +81,30 @@ describe("causal market structure markers", () => {
     expect(after.slice(0, before.length)).toEqual(before);
   });
 
+  test("sorts out-of-order bars and keeps the final duplicate timestamp like the chart", () => {
+    const bars = makeBars([
+      { high: 10, low: 8, close: 9 },
+      { high: 12, low: 8, close: 11 },
+      { high: 15, low: 9, close: 14 },
+      { high: 12, low: 9, close: 11 },
+      { high: 13, low: 8, close: 12 },
+      { high: 16, low: 11, close: 16 },
+    ]);
+    const replacement = { ...bars[2], h: 14, c: 13 };
+    const shuffledWithDuplicate = [
+      bars[0],
+      bars[2],
+      bars[1],
+      replacement,
+      ...bars.slice(3),
+    ];
+    const chartNormalized = [...bars];
+    chartNormalized[2] = replacement;
+
+    expect(buildStructureMarkers(shuffledWithDuplicate, { leftBars: 1, rightBars: 1 }))
+      .toEqual(buildStructureMarkers(chartNormalized, { leftBars: 1, rightBars: 1 }));
+  });
+
   test("equal highs/lows are not accepted as unique pivots", () => {
     const bars = makeBars([
       { high: 10, low: 8, close: 9 },
