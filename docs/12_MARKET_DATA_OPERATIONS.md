@@ -174,7 +174,16 @@ The monitor never submits orders, creates trade candidates, calculates position 
 
 Provider reference: https://www.dukascopy-node.app/downloading-real-time-data
 
-## 7. Keep the research chain reproducible
+## 7. Chart structure and prior available UTC date levels
+
+The chart desk offers two optional overlays:
+
+- **STRUCTURE**: causal BOS/CHoCH markers from unique swing pivots. A pivot is not available until the configured right-side confirmation bars have closed; breaks are marked on the actual break candle.
+- **PRIOR UTC**: dashed observed high/low lines from the nearest earlier UTC calendar date present in the selected closed-bar history.
+
+The prior-date overlay is intentionally labelled as an *observed UTC-date range*, not a broker/exchange session high or low. It records the source date and number of observed bars. If the feed skipped dates (for example, weekends or missing provider partitions), it chooses the nearest earlier date with data and does not synthesize bars. This is a research/chart reference only; session-specific levels require a verified instrument calendar and provider coverage audit.
+
+## 8. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
