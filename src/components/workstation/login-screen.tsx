@@ -22,8 +22,16 @@ export function LoginScreen() {
       password: demo ? "ami-demo-2026" : password,
       redirect: false,
     });
-    setBusy(false);
-    if (res?.error) setError("Sign-in failed — check email and password.");
+    if (res?.error) {
+      setError("Sign-in failed — check email and password.");
+      setBusy(false);
+      return;
+    }
+    // Credentials accepted and the session cookie is now set. Hard-reload so
+    // the session gate re-reads it — inside the preview iframe the usual
+    // next-auth session-refetch events are not dispatched cross-site, so an
+    // explicit reload is the one path that always lands on the desk.
+    window.location.reload();
   }
 
   return (
