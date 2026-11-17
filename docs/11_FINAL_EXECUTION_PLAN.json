@@ -78,7 +78,7 @@
     {
       "id": "FTC-000",
       "name": "Stabilize existing P0 repair",
-      "status": "source repair, fail-closed HTF handling, clean lint/typecheck/engine CI path verified; manual browser sign-off pending",
+      "status": "P0 chart/polling repair, canonical live/backtest evaluation, strict CI and chart-source refresh transitions verified; manual browser sign-off pending",
       "dependsOn": [],
       "deliverables": [
         "clean install",
@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #138 green on 17 Nov 2026: lint, strict typecheck, 51 Bun tests across 8 files, importer/downloader/catalogue smoke tests and production build; route/browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #178 green on 17 Nov 2026: lint, strict typecheck, 57 Bun tests across 9 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -115,7 +115,7 @@
     {
       "id": "FTC-100",
       "name": "Canonical instrument metadata v2",
-      "status": "canonical metadata v2 and class-separation tests committed; active market-registry migration and instrument economics verification pending",
+      "status": "canonical metadata v2 and instrument-class separation tests committed; active-registry migration plus provider session/contract/cost verification pending",
       "dependsOn": [
         "FTC-010"
       ],
@@ -134,7 +134,7 @@
     {
       "id": "FTC-110",
       "name": "Dukascopy XAUUSD historical importer",
-      "status": "pinned Dukascopy XAUUSD bid/ask downloader and importer committed; real download and session/coverage audit pending",
+      "status": "pinned Dukascopy XAUUSD bid/ask downloader, UTC importer, SHA-256 revisions and explicit chart selection implemented; real download and session/coverage audit pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -152,7 +152,7 @@
     {
       "id": "FTC-120",
       "name": "Dukascopy USATECH history importer",
-      "status": "pinned Dukascopy USATECH CFD bid/ask downloader and importer committed; real download and session/coverage audit pending",
+      "status": "pinned Dukascopy USATECH CFD bid/ask downloader, UTC importer, SHA-256 revisions and explicit chart selection implemented; real download and session/coverage audit pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -170,7 +170,7 @@
     {
       "id": "FTC-130",
       "name": "Dataset versioning and quality CLI",
-      "status": "hash-bound versioned datasets, original-source replay, normalized-data regeneration, quality/volume/identity checks, catalogue CLI/API and chart integration committed; real-data session audit and resumable import jobs pending",
+      "status": "hash-bound revisions, source replay, normalized-bar regeneration, quality/volume/identity checks, catalogue CLI/API, chart UI and chart-versus-backtest eligibility policy committed; real-data session audit and resumable import jobs pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -204,7 +204,7 @@
     {
       "id": "FTC-200",
       "name": "Dukascopy current-rate feasibility",
-      "status": "isolated dukascopy-node 1.51.1 runtime and optional getRealTimeRates polling worker implemented; bid/ask candles, two-sided latest tick, forming/closed separation and local snapshots are available; real provider availability/cadence/terms tests pending",
+      "status": "isolated dukascopy-node 1.51.1 getRealTimeRates polling worker implemented with separate bid/ask candles and two-sided tick snapshots; real provider availability/cadence/terms validation pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -221,7 +221,7 @@
     {
       "id": "FTC-210",
       "name": "Market-data freshness/reconnect/backfill",
-      "status": "authenticated monitor snapshot API and chart-desk freshness/status display implemented; worker preserves last good snapshot and reports NO_TICK/STALE/ERROR; reconnect/backfill, duplicate snapshot sequencing and session-aware freshness tests pending",
+      "status": "authenticated monitor API and chart-desk freshness display committed; last-good snapshot retention and NO_TICK/STALE/ERROR classification implemented; durable reconnect/backfill, sequence dedupe and session-aware freshness tests pending",
       "dependsOn": [
         "FTC-200"
       ],
@@ -238,7 +238,7 @@
     {
       "id": "FTC-300",
       "name": "Live multi-chart desk",
-      "status": "historical chart source, confirmed BOS/CHoCH overlay and experimental monitor status display implemented; monitor ticks are not yet injected into chart series; forming-candle live finalization and reconnect continuity pending",
+      "status": "per-chart exact historical revision selection, verified source bars, confirmed BOS/CHoCH overlay and separate monitor status display implemented; live monitor ticks remain intentionally disconnected from chart candles pending reconnect/finalization validation",
       "dependsOn": [
         "FTC-210"
       ],
@@ -255,7 +255,7 @@
     {
       "id": "FTC-310",
       "name": "Market structure and supply/demand",
-      "status": "confirmed swing/BOS/CHoCH overlay implemented and validated; supply/demand zones, prior-session levels and volume-qualified session VWAP pending",
+      "status": "confirmed unique swing/BOS/CHoCH overlay implemented with no future-data repaint tests; supply/demand zones, prior-session levels and valid-volume VWAP pending",
       "dependsOn": [
         "FTC-010",
         "FTC-130"
@@ -472,7 +472,9 @@
       "Structure engine sorts and deduplicates input bars to match chart candle normalization; fixtures cover confirmation delay, CHoCH direction changes, no future-data repaint, equal-pivot suppression and duplicate/out-of-order input",
       "Optional experimental current-rate monitor: pinned dukascopy-node 1.51.1 installed in isolated local runtime with separate lock; worker polls tick plus separate bid/ask candles; writes atomic local snapshots; supports Ctrl+C and one-shot mode",
       "Authenticated monitor snapshot API and chart-desk state/spread display; monitor status remains separate from the chart's historical/provider candle source",
-      "Monitor normalization separates closed/forming bars, retains bid/ask OHLC separately, computes top-of-book spread from paired ticks, and classifies NO_TICK/FRESH/STALE"
+      "Monitor normalization separates closed/forming bars, retains bid/ask OHLC separately, computes top-of-book spread from paired ticks, and classifies NO_TICK/FRESH/STALE",
+      "Operation capability policy distinguishes PASS/REVIEW chart and side-specific signal research from backtesting; single-side bid/ask history cannot unlock strategy backtests, paper execution or live routing",
+      "Chart data source is persisted per panel by exact immutable dataset ID; changing back to provider feed clears the old local chart data immediately"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -494,11 +496,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 138,
+      "latestFullyGreenRun": 178,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 51,
-      "testFiles": 8,
+      "tests": 57,
+      "testFiles": 9,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
