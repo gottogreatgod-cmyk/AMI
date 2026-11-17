@@ -385,7 +385,17 @@ export async function loadMarketDataset(
     asOfTs: manifest.provenance.formingCutoffTs,
     volumeUnits: manifest.volume.units ?? "units",
   };
-  const sourceParsed = parseDukascopyCsv(sourceCsv, sourceOptions);
+  const sourceParsed = (() => {
+    try {
+      return parseDukascopyCsv(sourceCsv, sourceOptions);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new DatasetStoreError(
+        "QUALITY_MISMATCH",
+        "Original source CSV cannot be replayed using this manifest: " + detail
+      );
+    }
+  })();
   const recreatedNormalized = serializeNormalizedBars(sourceParsed.bars);
   if (recreatedNormalized !== normalizedCsv) {
     throw new DatasetStoreError(
@@ -415,7 +425,9 @@ export async function loadMarketDataset(
     sourceParsed.volumeAvailable !== manifest.volume.present ||
     (sourceParsed.volumeAvailable && manifest.volume.semantics !== "PROVIDER_REPORTED") ||
     (!sourceParsed.volumeAvailable && manifest.volume.semantics !== "UNAVAILABLE") ||
-    (sourceParsed.volumeAvailable && manifest.volume.units === null)
+    (sourceParsed.volumeAvailable &&
+      !["millions", "thousands", "units"].includes(String(manifest.volume.units))) ||
+    (!sourceParsed.volumeAvailable && manifest.volume.units !== null)
   ) {
     throw new DatasetStoreError("QUALITY_MISMATCH", "Manifest volume metadata does not match the source CSV.");
   }
