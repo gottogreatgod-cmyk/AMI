@@ -42,21 +42,7 @@ bunx dukascopy-node@1.51.1 -i xauusd -from 2024-01-01 -to 2024-02-01 -t m15 -p b
 The documented CLI uses UTC epoch-millisecond candle timestamps. The end date is exclusive. Volume is omitted unless -v is specified; -vu selects its units. The supported timeframes include m1, m5, m15, m30, h1, h4 and d1.
 
 
-The documented Dukascopy CLI creates CSV exports using UTC epoch-millisecond candle timestamps. Use a separate download for each quote side. Volume is omitted unless -v is specified; -vu selects its units. The documented timeframes include m1, m5, m15, m30, h1, h4 and d1. The download end date is exclusive.
-
-Pin the CLI version in the command so the source tool can be reproduced:
-
-~~~bash
-bunx dukascopy-node@1.51.1 -i xauusd -from 2024-01-01 -to 2024-02-01 -t m15 -p bid -f csv -v -vu units
-bunx dukascopy-node@1.51.1 -i xauusd -from 2024-01-01 -to 2024-02-01 -t m15 -p ask -f csv -v -vu units
-
-bunx dukascopy-node@1.51.1 -i usatechidxusd -from 2024-01-01 -to 2024-02-01 -t m15 -p bid -f csv -v -vu units
-bunx dukascopy-node@1.51.1 -i usatechidxusd -from 2024-01-01 -to 2024-02-01 -t m15 -p ask -f csv -v -vu units
-~~~
-
-The default downloader destination shown in its quick-start documentation is download/. Confirm the exact generated filename before importing it. The current AMI importer treats bid and ask as separate datasets; it does not merge them into an inferred mid-price series.
-
-For smaller downloads and safer source behavior, request a reasonable date range, use the downloader cache, and avoid starting many simultaneous large tick downloads. Begin with H1/D1, then download M15/M5 only for periods needed by strategy research.
+The CSV format is `timestamp,open,high,low,close,volume`. Timestamps are UTC epoch milliseconds at the candle's start; the requested end date is exclusive. Repeat the command with `-p ask` to get the ask-side file. The importer keeps bid and ask as separate datasets; it never fabricates a midpoint from one side.
 
 ## 2. Normalize and fingerprint the CSV
 
