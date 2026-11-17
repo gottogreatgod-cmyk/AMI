@@ -114,8 +114,34 @@ export function buildDisplacementZones(
     const atrValue = atrValues[index];
     if (!Number.isFinite(atrValue) || atrValue <= 0) continue;
 
-    const base = bars.slice(index - config.baseBars, index);
-    if (base.length !== config.baseBars) continue;
+    const baseStartIndex = index - config.baseBars;
+    const base = bars.slice(baseStartIndex, index);
+    if (base.length !== config.baseBars || baseStartIndex < 1) continue;
+
+    // Estimate the expected bar spacing from observations strictly before
+    // this base cluster. Do not form a zone across missing candles, session
+    // breaks or provider omissions. Future bars never influence this check.
+    const priorDeltas: number[] = [];
+    const priorStart = Math.max(1, baseStartIndex - 5);
+    for (let priorIndex = priorStart; priorIndex < baseStartIndex; priorIndex++) {
+      const delta = bars[priorIndex].t - bars[priorIndex - 1].t;
+      if (delta > 0) priorDeltas.push(delta);
+    }
+    if (priorDeltas.length === 0) continue;
+    priorDeltas.sort((a, b) => a - b);
+    const midpoint = Math.floor(priorDeltas.length / 2);
+    const expectedSpacing = priorDeltas.length % 2 === 0
+      ? (priorDeltas[midpoint - 1] + priorDeltas[midpoint]) / 2
+      : priorDeltas[midpoint];
+    let contiguous = true;
+    for (let checkIndex = baseStartIndex; checkIndex <= index; checkIndex++) {
+      const delta = bars[checkIndex].t - bars[checkIndex - 1].t;
+      if (delta <= 0 || delta > expectedSpacing * 1.5) {
+        contiguous = false;
+        break;
+      }
+    }
+    if (!contiguous) continue;
 
     const baseHigh = Math.max(...base.map((bar) => bar.h));
     const baseLow = Math.min(...base.map((bar) => bar.l));
