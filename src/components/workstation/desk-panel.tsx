@@ -23,24 +23,6 @@ export interface ChartSlot {
   datasetId?: string;
 }
 
-interface DatasetCatalogEntry {
-  datasetId: string;
-  instrumentId: string;
-  displayName: string;
-  dataClass: string;
-  timeframe: string;
-  priceSide: "bid" | "ask";
-  qualityStatus: "PASS" | "REVIEW" | "REJECTED";
-  rows: number;
-  fromTs: number | null;
-  toTs: number | null;
-  importedAt: string;
-}
-
-interface DatasetCatalogResponse {
-  datasets: DatasetCatalogEntry[];
-  skipped: Array<{ directoryName: string; reason: string }>;
-}
 
 const TFS: Timeframe[] = ["15m", "45m", "1h", "3h", "4h", "1d", "1w"];
 
@@ -154,12 +136,11 @@ function ChartCard({
   isFocused: boolean;
   onSymbolChange: (symbol: string) => void;
   onTfChange: (tf: Timeframe) => void;
+  onDatasetChange: (datasetId: string | null) => void;
   priceDecimals: number;
   refreshKey: number;
-  datasets: DatasetCatalogEntry[];
-  onDatasetChange: (datasetId: string | null) => void;
 }) {
-  const [selectedDatasetId, setSelectedDatasetId] = useState("provider");
+  const selectedDatasetId = slot.datasetId ?? "provider";
   const [showStructure, setShowStructure] = useState(false);
   const selectableDatasets = useMemo(
     () => datasets.filter((dataset) =>
@@ -229,7 +210,7 @@ function ChartCard({
           </Button>
           <Select
             value={selectedDataset?.datasetId ?? "provider"}
-            onValueChange={setSelectedDatasetId}
+            onValueChange={(value) => onDatasetChange(value === "provider" ? null : value)}
           >
             <SelectTrigger className="h-6 w-[138px] bg-[#0a121a] border-[#34506a] text-[10px] px-2">
               <SelectValue placeholder="Provider feed" />
@@ -244,7 +225,7 @@ function ChartCard({
             </SelectContent>
           </Select>
           <Select value={slot.symbol} onValueChange={(symbol) => {
-            setSelectedDatasetId("provider");
+            onDatasetChange(null);
             onSymbolChange(symbol);
           }}>
             <SelectTrigger disabled={Boolean(selectedDataset)} className="h-6 w-[104px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
@@ -259,7 +240,7 @@ function ChartCard({
             </SelectContent>
           </Select>
           <Select value={slot.tf} onValueChange={(v) => {
-            setSelectedDatasetId("provider");
+            onDatasetChange(null);
             onTfChange(v as Timeframe);
           }}>
             <SelectTrigger disabled={Boolean(selectedDataset)} className="h-6 w-[62px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
@@ -303,10 +284,8 @@ function ChartCard({
             : q?.datasetId
               ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars"
               : q
-                ? q.datasetId
-              ? "LOCAL HISTORY · " + (q.priceSide ?? "—").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars"
-              : q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
-                : loading
+              ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
+              : loading
                   ? "FETCHING CLOSED BARS…"
                   : selectedDataset ? "WAITING FOR DATASET" : "WAITING FOR PROVIDER"}
         </span>
@@ -340,12 +319,15 @@ export function DeskPanel({
   onFocus: (symbol: string) => void;
   refreshKey?: number;
 }) {
-  const { data: datasetCatalog } = usePolling<DatasetCatalogResponse>("/api/market-data/datasets", 300_000);
+  const { data: catalog } = usePolling<DatasetCatalogResponse>(
+    "/api/market-data/datasets",
+    60_000,
+    refreshKey
+  );
   const { data: monitorStatus } = usePolling<MonitorStatusResponse>("/api/market-data/monitor", 15_000);
   const [includeReviewDatasets, setIncludeReviewDatasets] = useState(false);
-  const localDatasets = datasetCatalog?.datasets ?? [];
-  const { data: catalog } = usePolling<DatasetCatalogResponse>("/api/market-data/datasets", 60_000, refreshKey);
   const datasets = catalog?.datasets ?? [];
+  const localDatasets = datasets;
   const chartSymbols = useMemo(() => {
     const combined = [...symbols];
     const seen = new Set(combined.map((item) => item.symbol));
@@ -443,7 +425,7 @@ export function DeskPanel({
       <div className={cn("grid gap-1.5 p-1.5 flex-1 min-h-0", gridClass)}>
         {slots.map((slot, i) => (
           <ChartCard
-            key={String(i) + "-" + slot.symbol + "-" + slot.tf}
+            key={String(i) + "-" + slot.symbol + "-" + slot.tf + "-" + (slot.datasetId ?? "provider")}
             slot={slot}
             symbols={chartSymbols}
             onFocus={() => onFocus(slot.symbol)}
@@ -463,6 +445,11 @@ export function DeskPanel({
             refreshKey={refreshKey}
             datasets={localDatasets}
             includeReview={includeReviewDatasets}
+            onDatasetChange={(datasetId) => {
+              const next = [...slots];
+              next[i] = { ...slot, datasetId: datasetId ?? undefined };
+              onSlotsChange(next);
+            }}
           />
         ))}
       </div>
