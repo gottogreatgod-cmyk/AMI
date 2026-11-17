@@ -127,7 +127,45 @@ GET /api/candles?symbol=NAS100-DUKA&tf=15m&datasetId=<exact-dataset-id>&limit=10
 
 The symbol, supported timeframe and dataset ID must agree. The response includes the exact quote side and manifest hashes. The active market quote API and normal backtest provider remain unchanged; a historical dataset is not automatically a live feed or a cost-verified tradeable instrument.
 
-## 6. Keep the research chain reproducible
+## 7. Experimental current-rate monitor (optional)
+
+The current-rate monitor is a separate process from the historical downloader and the workstation's normal chart provider. It uses the documented Node API `getRealTimeRates` from the pinned `dukascopy-node@1.51.1` package. The provider documentation marks this API experimental; treat it as a best-effort polling monitor, not a persistent WebSocket or exchange-grade stream.
+
+Start one monitor per instrument in a terminal alongside AMI:
+
+~~~bash
+bun run market-data:monitor -- --instrument XAUUSD-DUKA --timeframe m1 --poll-seconds 60
+bun run market-data:monitor -- --instrument NAS100-DUKA --timeframe m1 --poll-seconds 60
+~~~
+
+Use `Ctrl+C` to stop a monitor. A one-cycle diagnostic is also available:
+
+~~~bash
+bun run market-data:monitor -- --instrument XAUUSD-DUKA --timeframe m1 --once
+~~~
+
+The first run installs the exact `dukascopy-node@1.51.1` version in an isolated runtime under `data/market-data/.runtime/dukascopy-realtime/`; Bun creates a separate local lockfile there. This keeps the application's root `package.json` and `bun.lock` unchanged. The worker writes the most recent snapshot to `data/market-data/.monitor/{instrument}.latest.json`. These runtime files are local and ignored by Git.
+
+The worker requests:
+- the latest tick with bid and ask prices (and provider volumes where returned);
+- the latest bid-side candles for the selected timeframe;
+- the latest ask-side candles for the selected timeframe.
+
+Bid and ask OHLC stay separate. The monitor does not fabricate a midpoint OHLC candle by averaging bid and ask highs/lows, and it does not treat provider volume as consolidated exchange volume. Forming candles are identified separately from closed candles using UTC interval close times.
+
+Authenticated status endpoint:
+
+~~~text
+GET /api/market-data/monitor
+~~~
+
+The chart desk shows the monitor state and last bid/ask/spread when a worker is running. States are `FRESH`, `STALE`, `NO_TICK`, `ERROR` or `NOT_STARTED`. `NO_TICK` can mean a quiet/closed market or missing provider data; AMI does not infer a market calendar or relabel this as a confirmed closure. Errors preserve the last successful snapshot and mark it stale.
+
+The monitor never submits orders, creates trade candidates, calculates position sizes, or makes these instruments active in the backtest engine. Before using any feed data in strategy logic, complete cadence/freshness, repeated-snapshot deduplication, disconnect/recovery, provider access/terms and instrument-calendar tests.
+
+Provider reference: https://www.dukascopy-node.app/downloading-real-time-data
+
+## 8. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
