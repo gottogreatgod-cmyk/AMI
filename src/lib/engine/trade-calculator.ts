@@ -216,6 +216,12 @@ export function calculateTradeSize(
     return noTrade(instrumentId, ["RISK_OR_REWARD_CALCULATION_INVALID"]);
   }
 
+  const minimumNetRewardRisk = input.minimumNetRewardRisk ?? 1;
+  const perUnitNetRewardRisk = netTargetProfitPerUnit / worstCaseStopLossPerUnit;
+  if (netTargetProfitPerUnit <= 0 || perUnitNetRewardRisk < minimumNetRewardRisk) {
+    return noTrade(instrumentId, ["NET_REWARD_RISK_BELOW_MINIMUM_AFTER_COSTS"]);
+  }
+
   const riskBudget = input.accountEquity * input.riskPercent / 100;
   const rawRiskQuantity = riskBudget / worstCaseStopLossPerUnit;
   const notionalPerUnit = entry * multiplier;
@@ -242,8 +248,7 @@ export function calculateTradeSize(
   const estimatedNotional = quantity * notionalPerUnit;
   const estimatedInitialMargin = quantity * marginPerQuantityUnit;
   const grossRewardRisk = grossRewardPerUnit / grossLossPerUnit;
-  const netRewardRisk = netTargetProfitPerUnit / worstCaseStopLossPerUnit;
-  const minimumNetRewardRisk = input.minimumNetRewardRisk ?? 1;
+  const netRewardRisk = perUnitNetRewardRisk;
 
   if (estimatedWorstCaseStopLoss > riskBudget + 1e-8) {
     return noTrade(instrumentId, ["ROUNDED_QUANTITY_EXCEEDS_RISK_BUDGET"]);
