@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #328 green on 17 Nov 2026: Prisma client generation and isolated SQLite schema apply, lint, strict typecheck, 121 Bun tests across 16 files (including risk API route contract tests), four offline CLI smoke checks and production build; browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #356 green on 17 Nov 2026: Prisma client generation and isolated SQLite schema apply, lint, strict TypeScript, 122 Bun tests across 16 files, 6 Python importer tests, five offline CLI smoke checks and production build; browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -115,7 +115,7 @@
     {
       "id": "FTC-100",
       "name": "Canonical instrument metadata v2",
-      "status": "Canonical instrument metadata v3 now includes explicit notional multiplier and initial-margin fields; current XAU spot/NAS CFD and reference instruments remain unverified; active-registry/provider contract verification pending",
+      "status": "Canonical metadata v3 now separates BROKER_CFD, OTC_SPOT_METAL, CONTINUOUS_FUTURES, dated EXCHANGE_FUTURES and tokenized metal; NQZ6 CME static multiplier/tick/lot are verified, but margin/cost/session facts remain unverified; NAS100 CFD and XAU spot remain unverified for sizing",
       "dependsOn": [
         "FTC-010"
       ],
@@ -188,7 +188,7 @@
     {
       "id": "FTC-140",
       "name": "NQ limited/free sample importer",
-      "status": "not_started",
+      "status": "Pinned NQZ6 one-day free sample importer and canonical dated-futures identity implemented; reconstructs 1m bars from dated ticks, SHA-verifies the official pack and reconciles against published reference bars; private-use restrictions stored; Python helper tests and CLI smoke pass in CI run #356. Actual ZIP/Parquet import, PyArrow runtime validation and per-minute volume CSV row comparison pending; dataset remains outside the normal Dukascopy store/backtest engine",
       "dependsOn": [
         "FTC-100"
       ],
@@ -454,7 +454,7 @@
     "losingExperimentsPreserved": true
   },
   "implementationSnapshot": {
-    "date": "2026-11-17",
+    "date": "2026-11-18",
     "completedInBranch": [
       "P0 chart polling/refresh and chart-series lifecycle repairs",
       "Canonical live/backtest signal evaluator and higher-timeframe fail-closed behavior",
@@ -482,7 +482,9 @@
       "Canonical instrument metadata v3 now carries explicit notional multiplier and initial margin rate/per-unit fields; all existing instruments remain null/unverified unless an authoritative specification is added",
       "Authenticated POST /api/risk/calculate adapts server-owned canonical metadata and requires separate bid/ask quote pairs for entry, stop and target; rejects crossed quotes, unverified contract/cost/margin, invalid ticks, inadequate net R:R and quantities outside risk/margin caps",
       "Risk calculator currency safety: canonical registry explicitly declares each instrument's P&L settlement currency; adapter requires account currency and only accepts verified FX rates labelled for the exact P&L/quote/account currency triplet; same-currency rates are exactly 1; API requires account currency and does not accept a client-supplied verified-FX flag",
-      "Risk calculation API route regression tests cover authentication, malformed/strict request validation, required account currency, rejection of client-supplied contract facts, unknown instrument handling, crossed bid/ask pairs and calculation-only NO_TRADE for unverified XAUUSD-DUKA metadata"
+      "Risk calculation API route regression tests cover authentication, malformed/strict request validation, required account currency, rejection of client-supplied contract facts, unknown instrument handling, crossed bid/ask pairs and calculation-only NO_TRADE for unverified XAUUSD-DUKA metadata",
+      "FTC-140 NQZ6 dated-contract sample importer: pins official 2026-11-09 sample ZIP SHA-256, verifies per-file hashes, typed UTC Parquet tick/bar schemas, CME/NQZ6 identity and tick totals, reconstructs one-minute bars from dated ticks and checks OHLCV/tradeCount against published continuous bars; stores immutable local revision and original sources with private-use restrictions; Python unit tests and CLI smoke checks pass",
+      "NQZ6 canonical instrument identity has CME-verified static contract multiplier $20 per index point, 0.25-point minimum tick ($5 per contract tick) and one-contract quantity increment; commission/slippage and current margin remain unverified so the risk API continues to return NO_TRADE"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -498,7 +500,10 @@
       "Opportunity candidates are not yet generated automatically from live signals/zones, persisted in the database, deduplicated across workers, surfaced in the UI/API or connected to a paper OMS",
       "Trade calculator is not yet surfaced in UI/API or attached to opportunities; no verified XAUUSD-DUKA or NAS100-DUKA contract, fee, slippage or initial-margin specification is supplied, so those instruments remain NO_TRADE",
       "No current primary instrument has verified contract point value, notional multiplier, commission/slippage and initial margin; therefore XAUUSD-DUKA and NAS100-DUKA remain NO_TRADE through the new sizing API",
-      "A trusted, timestamped FX conversion provider and persisted user account currency are not yet integrated; cross-currency risk calculations therefore remain NO_TRADE unless a trusted conversion is supplied internally"
+      "A trusted, timestamped FX conversion provider and persisted user account currency are not yet integrated; cross-currency risk calculations therefore remain NO_TRADE unless a trusted conversion is supplied internally",
+      "NQZ6 ZIP has not been downloaded/imported in this environment; actual PyArrow schema/runtime and end-to-end sample reconciliation remain unverified",
+      "NQ minute-volume CSV is retained and hash-verified but its individual rows are not yet parsed/reconciled independently; tick volume is checked against the published one-minute bars and sample totals",
+      "NQZ6 sample archive is separate from the Dukascopy dataset store and is not wired into normal charts/backtests; it is one day of internal research data, not full NQ history"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -508,10 +513,10 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 328,
+      "latestFullyGreenRun": 356,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 121,
+      "tests": 122,
       "testFiles": 16,
       "lint": true,
       "strictTypecheck": true,
@@ -521,7 +526,12 @@
       "catalogueCliSmoke": true,
       "monitorCliHelpSmoke": true,
       "realMarketDataDownloaded": false,
-      "realtimeProviderPolled": false
+      "realtimeProviderPolled": false,
+      "pythonTests": 6,
+      "pythonTestFiles": 1,
+      "pythonImporterCompile": true,
+      "nqSampleCliSmoke": true,
+      "realNqSampleImported": false
     }
   }
 }
