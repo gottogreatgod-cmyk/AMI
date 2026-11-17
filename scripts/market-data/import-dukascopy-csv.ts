@@ -51,13 +51,13 @@ function usage(): string {
     "  --as-of ISO-8601      override forming-candle cutoff",
     "",
     "This tool normalizes existing Dukascopy CSV downloads. It does not fetch data.",
-  ].join("\\n");
+  ].join("\n");
 }
 
 async function main(): Promise<void> {
   const rawArgs = Bun.argv.slice(2);
   if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
-    process.stdout.write(usage() + "\\n");
+    process.stdout.write(usage() + "\n");
     return;
   }
 
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
 
   await Bun.write(resolve(outputDirectory, "source.csv"), rawCsv);
   await Bun.write(resolve(outputDirectory, "normalized.csv"), normalizedCsv);
-  await Bun.write(resolve(outputDirectory, "manifest.json"), JSON.stringify(manifest, null, 2) + "\\n");
+  await Bun.write(resolve(outputDirectory, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 
   const summary = {
     datasetId: manifest.datasetId,
@@ -124,13 +124,13 @@ async function main(): Promise<void> {
     rawSha256: manifest.provenance.rawSha256,
     normalizedSha256: manifest.provenance.normalizedSha256,
   };
-  process.stdout.write(JSON.stringify(summary, null, 2) + "\\n");
+  process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
 
   if (manifest.quality.qualityStatus === "REJECTED") process.exitCode = 1;
 }
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write("AMI dataset import failed: " + message + "\\n\\n" + usage() + "\\n");
+  process.stderr.write("AMI dataset import failed: " + message + "\n\n" + usage() + "\n");
   process.exitCode = 1;
 });
