@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #245 green on 17 Nov 2026: lint, strict typecheck, 88 Bun tests across 12 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #259 green on 17 Nov 2026: lint, strict typecheck, 98 Bun tests across 13 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -290,7 +290,7 @@
     {
       "id": "FTC-410",
       "name": "Trade calculator and risk policy",
-      "status": "not_started",
+      "status": "Generic contract-verified risk calculator implemented and tested: tick/lot validation, side-aware executable prices, two-sided costs, verified initial margin rate/per-unit model, risk/leverage/margin caps, net R:R and explicit NO_TRADE reasons. XAUUSD-DUKA/NAS100-DUKA remain NO_TRADE because their contract/cost/margin metadata is unverified; run/API integration pending",
       "dependsOn": [
         "FTC-100",
         "FTC-400"
@@ -477,7 +477,8 @@
       "Chart data source is persisted per panel by exact immutable dataset ID; changing back to provider feed clears the old local chart data immediately",
       "Observed prior available UTC calendar-date high/low overlay: uses only observed closed bars, skips missing dates without synthetic fill, labels provenance date and observed bar count, and does not claim exchange-session semantics",
       "Separate displacement-origin DEMAND/SUPPLY zone engine with ATR-normalized base compression and closed-bar impulse confirmation; tracks retest/invalidation, rejects unexplained candle gaps, and exposes latest non-invalidated zone boundaries in the optional chart ZONES overlay",
-      "Pure opportunity lifecycle state machine with required timestamped evidence, WATCH/NEAR_TRIGGER/TRIGGERED/INVALIDATED/EXPIRED/SUPPRESSED states, append-only transition events, stale/data/HTF suppression and resume, invalidation-first same-bar safety priority, and duplicate/out-of-order observation idempotency"
+      "Pure opportunity lifecycle state machine with required timestamped evidence, WATCH/NEAR_TRIGGER/TRIGGERED/INVALIDATED/EXPIRED/SUPPRESSED states, append-only transition events, stale/data/HTF suppression and resume, invalidation-first same-bar safety priority, and duplicate/out-of-order observation idempotency",
+      "Generic contract-verified trade calculator: requires verified contract tick/quantity/point/notional economics, verified fees/slippage, verified initial-margin rate or per-unit requirement, and side-aware executable entry/stop/target prices; calculates stop risk, two-leg costs, net reward/risk, leverage/margin caps and explicit NO_TRADE reasons"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -490,7 +491,8 @@
       "Structure overlays do not yet include verified exchange/broker session levels or volume-qualified session VWAP; displacement-origin zones are heuristic chart research, not order-flow evidence",
       "Experimental monitor has not yet been run against the provider in a local environment; availability, current-rate cadence and provider terms remain unverified",
       "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay",
-      "Opportunity candidates are not yet generated automatically from live signals/zones, persisted in the database, deduplicated across workers, surfaced in the UI/API or connected to a paper OMS"
+      "Opportunity candidates are not yet generated automatically from live signals/zones, persisted in the database, deduplicated across workers, surfaced in the UI/API or connected to a paper OMS",
+      "Trade calculator is not yet surfaced in UI/API or attached to opportunities; no verified XAUUSD-DUKA or NAS100-DUKA contract, fee, slippage or initial-margin specification is supplied, so those instruments remain NO_TRADE"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -500,11 +502,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 245,
+      "latestFullyGreenRun": 259,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 88,
-      "testFiles": 12,
+      "tests": 98,
+      "testFiles": 13,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
