@@ -37,6 +37,7 @@ const source = {
 let stopping = false;
 let lastGoodSnapshot = null;
 let pollCount = 0;
+let wakeSleep = null;
 
 async function atomicWrite(value) {
   await mkdir(dirname(outputPath), { recursive: true });
@@ -172,12 +173,26 @@ async function run() {
 
     if (process.env.AMI_MONITOR_ONCE === "1") break;
     if (!stopping) {
-      await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
+      await new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          wakeSleep = null;
+          resolve();
+        }, pollSeconds * 1000);
+        wakeSleep = () => {
+          clearTimeout(timer);
+          wakeSleep = null;
+          resolve();
+        };
+      });
     }
   }
 }
 
-process.on("SIGINT", () => { stopping = true; });
-process.on("SIGTERM", () => { stopping = true; });
+const stop = () => {
+  stopping = true;
+  wakeSleep?.();
+};
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
 
 await run();
