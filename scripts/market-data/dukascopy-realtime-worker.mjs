@@ -72,7 +72,7 @@ async function pollOnce() {
   const askRaw = await fetchJson({ timeframe, priceType: "ask", volumes: true, last: 8 });
 
   const fetchedAt = Date.now();
-  const tick = helpers.normalizeMonitorTick(ticksRaw);
+  const tick = helpers.normalizeMonitorTick(ticksRaw, fetchedAt);
   const bid = helpers.normalizeMonitorCandles(bidRaw, timeframeMs, fetchedAt);
   const ask = helpers.normalizeMonitorCandles(askRaw, timeframeMs, fetchedAt);
   const freshness = helpers.classifyMonitorFreshness(
