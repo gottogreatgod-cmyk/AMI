@@ -78,7 +78,7 @@
     {
       "id": "FTC-000",
       "name": "Stabilize existing P0 repair",
-      "status": "draft_pr_open_validation_required",
+      "status": "source_repair_and_CI_baseline_green; final clean-checkout validation pending",
       "dependsOn": [],
       "deliverables": [
         "clean install",
@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "not_started",
+      "status": "CI_green_with_lint_typecheck_engine_data_tests_and_production_build; API_browser_security_gates_pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -115,7 +115,7 @@
     {
       "id": "FTC-100",
       "name": "Canonical instrument metadata v2",
-      "status": "not_started",
+      "status": "initial_metadata_contract_committed; active_registry_migration_and_contract_verification_pending",
       "dependsOn": [
         "FTC-010"
       ],
@@ -134,7 +134,7 @@
     {
       "id": "FTC-110",
       "name": "Dukascopy XAUUSD historical importer",
-      "status": "not_started",
+      "status": "offline_XAUUSD_CSV_normalizer_and_manifest_committed; real_dataset_import_and_quality_audit_pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -152,7 +152,7 @@
     {
       "id": "FTC-120",
       "name": "Dukascopy USATECH history importer",
-      "status": "not_started",
+      "status": "offline_USATECH_CSV_normalizer_and_manifest_committed; real_dataset_import_and_quality_audit_pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -170,7 +170,7 @@
     {
       "id": "FTC-130",
       "name": "Dataset versioning and quality CLI",
-      "status": "not_started",
+      "status": "initial_SHA256_manifest_and_quality_validation_committed; dataset_catalog_and_resume_pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -452,5 +452,27 @@
     "staleDataSuppressesNewCandidates": true,
     "unverifiedContractSpecsSuppressSizing": true,
     "losingExperimentsPreserved": true
+  },
+  "implementationSnapshot": {
+    "date": "2026-11-17",
+    "completedInBranch": [
+      "PR source repairs for chart polling and live/backtest signal parity",
+      "GitHub Actions dependency install, Prisma generation, lint, strict typecheck, Bun tests and production build",
+      "Deterministic tests for indicators, causal resampling, HTF fail-closed behavior and next-open fills",
+      "Versioned instrument metadata distinguishing CFD, OTC spot, dated futures, continuous futures and tokenized metal",
+      "Offline Dukascopy CSV normalizer with source and normalized SHA-256 hashes, UTC timestamps, duplicate/gap diagnostics and no synthetic bars"
+    ],
+    "notYetCompleted": [
+      "Primary historical datasets have not yet been downloaded/imported and audited",
+      "Dukascopy data is not wired into active getBars/chart/backtest adapters",
+      "No realtime adapter or guaranteed streaming path is enabled",
+      "No order sizing is enabled for unverified contract economics",
+      "Browser/API integration tests and paper-forward certification remain pending"
+    ],
+    "operatingSafety": {
+      "liveOrdersEnabled": false,
+      "unverifiedContractSizingEnabled": false,
+      "syntheticGapFillingEnabled": false
+    }
   }
 }
