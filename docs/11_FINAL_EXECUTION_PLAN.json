@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "CI_green_with_lint_typecheck_engine_data_tests_and_production_build; API_browser_security_gates_pending",
+      "status": "CI green with lint, strict typecheck, engine and market-data tests, importer CLI and downloader-help smoke tests, and production build; API/browser/security gates pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -134,7 +134,7 @@
     {
       "id": "FTC-110",
       "name": "Dukascopy XAUUSD historical importer",
-      "status": "offline_XAUUSD_CSV_normalizer_and_manifest_committed; real_dataset_import_and_quality_audit_pending",
+      "status": "Pinned Dukascopy XAUUSD downloader and bid/ask importer implemented; real sample download and coverage audit pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -152,7 +152,7 @@
     {
       "id": "FTC-120",
       "name": "Dukascopy USATECH history importer",
-      "status": "offline_USATECH_CSV_normalizer_and_manifest_committed; real_dataset_import_and_quality_audit_pending",
+      "status": "Pinned Dukascopy USATECH CFD downloader and bid/ask importer implemented; real sample download and coverage audit pending",
       "dependsOn": [
         "FTC-010",
         "FTC-100"
@@ -170,7 +170,7 @@
     {
       "id": "FTC-130",
       "name": "Dataset versioning and quality CLI",
-      "status": "initial_SHA256_manifest_and_quality_validation_committed; dataset_catalog_and_resume_pending",
+      "status": "SHA-256 manifests, UTC normalization, duplicate/gap/invalid-row checks and local importer committed; dataset catalog, resumable job state and engine adapter pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -460,10 +460,11 @@
       "GitHub Actions dependency install, Prisma generation, lint, strict typecheck, Bun tests and production build",
       "Deterministic tests for indicators, causal resampling, HTF fail-closed behavior and next-open fills",
       "Versioned instrument metadata distinguishing CFD, OTC spot, dated futures, continuous futures and tokenized metal",
-      "Offline Dukascopy CSV normalizer with source and normalized SHA-256 hashes, UTC timestamps, duplicate/gap diagnostics and no synthetic bars"
+      "Offline Dukascopy CSV normalizer with source and normalized SHA-256 hashes, UTC timestamps, duplicate/gap diagnostics and no synthetic bars",
+      "Pinned dukascopy-node 1.51.1 downloader orchestrator: sequential bid/ask requests, local cache, conservative batch pacing, retries and immediate CSV normalization"
     ],
     "notYetCompleted": [
-      "Primary historical datasets have not yet been downloaded/imported and audited",
+      "No real market-data archive has been downloaded/imported and independently coverage-audited yet",
       "Dukascopy data is not wired into active getBars/chart/backtest adapters",
       "No realtime adapter or guaranteed streaming path is enabled",
       "No order sizing is enabled for unverified contract economics",
