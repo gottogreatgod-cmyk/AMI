@@ -49,6 +49,17 @@ describe("experimental Dukascopy monitor normalization", () => {
     expect(result.bars).toHaveLength(0);
   });
 
+  test("rejects candle opens that are in the future even when within one timeframe", () => {
+    const now = 100_000;
+    const result = normalizeMonitorCandles([
+      [90_000, 2000, 2002, 1999, 2001, 10],
+      [120_000, 2001, 2005, 2000, 2004, 15],
+    ], MINUTE, now);
+
+    expect(result.bars).toHaveLength(1);
+    expect(result.bars[0].t).toBe(90_000);
+  });
+
   test("normalizes two-sided ticks and computes quote spread transparently", () => {
     const tick = normalizeMonitorTick([
       { timestamp: 1000, askPrice: 2001, bidPrice: 2000, askVolume: 2, bidVolume: 3 },
@@ -61,6 +72,16 @@ describe("experimental Dukascopy monitor normalization", () => {
   test("rejects inverted or missing tick quotes rather than reordering sides", () => {
     expect(normalizeMonitorTick([{ timestamp: 1000, askPrice: 1999, bidPrice: 2000 }])).toBeNull();
     expect(normalizeMonitorTick([])).toBeNull();
+  });
+
+  test("rejects provider ticks beyond the allowed future clock-skew window", () => {
+    const now = 100_000;
+    expect(normalizeMonitorTick([
+      [now + 10_001, 2001, 2000, 1, 1],
+    ], now)).toBeNull();
+    expect(normalizeMonitorTick([
+      [now + 5_000, 2001, 2000, 1, 1],
+    ], now)?.timestamp).toBe(now + 5_000);
   });
 
   test("freshness is explicit and missing ticks are not treated as a zero price", () => {
