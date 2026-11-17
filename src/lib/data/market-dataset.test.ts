@@ -184,6 +184,26 @@ describe("market dataset provenance", () => {
     expect(first.datasetId).not.toBe(second.datasetId);
   });
 
+  test("volume-unit metadata creates a distinct immutable dataset identity", async () => {
+    const parsed = parseDukascopyCsv(validCsv, defaultOptions);
+    const normalizedCsv = serializeNormalizedBars(parsed.bars);
+    const make = (volumeUnits: "units" | "millions") =>
+      createMarketDatasetManifest({
+        options: { ...defaultOptions, volumeUnits },
+        parsed,
+        sourceFileName: "xauusd-h1-bid.csv",
+        rawCsv: validCsv,
+        normalizedCsv,
+        importedAt: "2024-01-03T00:00:00.000Z",
+      });
+
+    const units = await make("units");
+    const millions = await make("millions");
+    expect(units.provenance.rawSha256).toBe(millions.provenance.rawSha256);
+    expect(units.provenance.normalizedSha256).toBe(millions.provenance.normalizedSha256);
+    expect(units.datasetId).not.toBe(millions.datasetId);
+  });
+
   test("preserves the Nasdaq-style CFD identity in its manifest", async () => {
     const nasdaqOptions = { ...defaultOptions, instrumentId: "NAS100-DUKA" as const };
     const parsed = parseDukascopyCsv(validCsv, nasdaqOptions);
