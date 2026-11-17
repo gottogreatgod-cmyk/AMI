@@ -96,10 +96,12 @@ function ChartCard({
   priceDecimals,
   refreshKey,
   datasets,
+  includeReview,
 }: {
   slot: ChartSlot;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
   datasets: LocalDatasetOption[];
+  includeReview: boolean;
   onFocus: () => void;
   isFocused: boolean;
   onSymbolChange: (symbol: string) => void;
@@ -110,10 +112,10 @@ function ChartCard({
   const [selectedDatasetId, setSelectedDatasetId] = useState("provider");
   const selectableDatasets = useMemo(
     () => datasets.filter((dataset) =>
-      dataset.qualityStatus === "PASS" &&
+      (dataset.qualityStatus === "PASS" || (includeReview && dataset.qualityStatus === "REVIEW")) &&
       DATASET_CHART_TIMEFRAME[dataset.timeframe] === slot.tf
     ),
-    [datasets, slot.tf]
+    [datasets, slot.tf, includeReview]
   );
   const selectedDataset = selectableDatasets.find((dataset) => dataset.datasetId === selectedDatasetId);
   const chartSymbol = selectedDataset?.instrumentId ?? slot.symbol;
@@ -121,7 +123,7 @@ function ChartCard({
     ? DATASET_CHART_TIMEFRAME[selectedDataset.timeframe] ?? slot.tf
     : slot.tf;
   const candlesUrl = selectedDataset
-    ? `/api/candles?symbol=${encodeURIComponent(chartSymbol)}&tf=${chartTf}&datasetId=${encodeURIComponent(selectedDataset.datasetId)}&limit=600`
+    ? `/api/candles?symbol=${encodeURIComponent(chartSymbol)}&tf=${chartTf}&datasetId=${encodeURIComponent(selectedDataset.datasetId)}&limit=600${selectedDataset.qualityStatus === "REVIEW" ? "&allowReview=true" : ""}`
     : `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`;
   const { data, error, loading } = usePolling<CandlesResponse>(candlesUrl, 60_000, refreshKey);
   const dataMatchesSelection = Boolean(
@@ -162,7 +164,7 @@ function ChartCard({
               <SelectItem value="provider" className="text-[11px]">Provider feed</SelectItem>
               {selectableDatasets.map((dataset) => (
                 <SelectItem key={dataset.datasetId} value={dataset.datasetId} className="text-[10px]">
-                  {dataset.instrumentId} · {dataset.timeframe} · {dataset.priceSide.toUpperCase()} · {dataset.rows} bars
+                  {dataset.instrumentId} · {dataset.timeframe} · {dataset.priceSide.toUpperCase()} · {dataset.qualityStatus} · {dataset.rows} bars
                 </SelectItem>
               ))}
             </SelectContent>
@@ -262,6 +264,7 @@ export function DeskPanel({
   refreshKey?: number;
 }) {
   const { data: datasetCatalog } = usePolling<DatasetCatalogResponse>("/api/market-data/datasets", 300_000);
+  const [includeReviewDatasets, setIncludeReviewDatasets] = useState(false);
   const localDatasets = datasetCatalog?.datasets ?? [];
   const preset = slots.length; // layout preset is derived from the slot count
   const decimalsOf = (symbol: string) => symbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
@@ -284,10 +287,23 @@ export function DeskPanel({
         <div className="flex items-center gap-2">
           <span>CHART CANVAS</span>
           <span className="text-[9px] font-normal text-[#687e90]">
-            closed bars · independent panels · {localDatasets.filter((dataset) => dataset.qualityStatus === "PASS").length} PASS-labelled local revisions
+            closed bars · independent panels · {localDatasets.filter((dataset) => dataset.qualityStatus === "PASS").length} PASS / {localDatasets.filter((dataset) => dataset.qualityStatus === "REVIEW").length} REVIEW
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIncludeReviewDatasets((value) => !value)}
+            aria-pressed={includeReviewDatasets}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              includeReviewDatasets ? "text-[#e7b86d] bg-[#302719]" : "text-[#8193a3]"
+            )}
+            title="REVIEW datasets may contain unclassified session gaps or resolved duplicates"
+          >
+            REVIEW {includeReviewDatasets ? "ON" : "OFF"}
+          </Button>
           <LayoutGrid className="w-3 h-3 text-[#687e90]" aria-hidden />
           {([1, 2, 4] as const).map((n) => (
             <Button
@@ -329,6 +345,7 @@ export function DeskPanel({
             priceDecimals={decimalsOf(slot.symbol)}
             refreshKey={refreshKey}
             datasets={localDatasets}
+            includeReview={includeReviewDatasets}
           />
         ))}
       </div>
