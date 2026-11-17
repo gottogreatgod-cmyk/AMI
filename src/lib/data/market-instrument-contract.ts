@@ -36,6 +36,8 @@ export interface CanonicalInstrumentMetadata {
   readonly providerInstrument: string | null;
   readonly providerReadiness: ProviderReadiness;
   readonly quoteCurrency: "USD" | "USDT";
+  /** Currency in which contract P&L is settled; never inferred by the risk calculator. */
+  readonly pnlCurrency: "USD" | "USDT";
   readonly quoteSide: MarketQuoteSide;
   readonly analysisPriceSide: "MID" | "LAST" | "TRADE";
   readonly volumeSemantics: MarketVolumeSemantics;
@@ -105,6 +107,7 @@ export const MARKET_INSTRUMENTS = {
     providerInstrument: "usatechidxusd",
     providerReadiness: "HISTORICAL_CANDIDATE",
     quoteCurrency: "USD",
+    pnlCurrency: "USD",
     quoteSide: "BID_ASK",
     analysisPriceSide: "MID",
     volumeSemantics: "PROVIDER_REPORTED",
@@ -161,6 +164,7 @@ export const MARKET_INSTRUMENTS = {
     providerInstrument: null,
     providerReadiness: "REFERENCE_ONLY",
     quoteCurrency: "USD",
+    pnlCurrency: "USD",
     quoteSide: "LAST",
     analysisPriceSide: "LAST",
     volumeSemantics: "EXCHANGE_TRADED_VOLUME",
@@ -245,6 +249,7 @@ export const MARKET_INSTRUMENTS = {
     providerInstrument: "PAXGUSDT",
     providerReadiness: "ACTIVE",
     quoteCurrency: "USDT",
+    pnlCurrency: "USDT",
     quoteSide: "TRADE",
     analysisPriceSide: "TRADE",
     volumeSemantics: "EXCHANGE_TRADED_VOLUME",
