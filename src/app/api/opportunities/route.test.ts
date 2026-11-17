@@ -145,7 +145,7 @@ describe("/api/opportunities", () => {
     expect(retry.status).toBe(200);
     expect(retryBody.outcome).toBe("EXISTING");
     expect(retryBody.opportunity.id).toBe(firstBody.opportunity.id);
-    expect(retryBody.opportunity.snapshot.events).toHaveLength(1);
+    expect(retryBody.opportunity.events).toHaveLength(1);
 
     const count = await db.opportunityEvent.count({
       where: { opportunityId: firstBody.opportunity.id },
