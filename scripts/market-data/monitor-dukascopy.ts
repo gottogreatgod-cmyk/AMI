@@ -110,8 +110,9 @@ async function main() {
     process.stdout.write("Installing isolated dukascopy-node@1.51.1 runtime…\n");
     const lockExists = await Bun.file(resolve(runtimeDir, "bun.lock")).exists() ||
       await Bun.file(resolve(runtimeDir, "bun.lockb")).exists();
+    const useFrozenLock = !installRequired && lockExists;
     await runCommand(
-      lockExists ? [process.execPath, "install", "--frozen-lockfile"] : [process.execPath, "install"],
+      useFrozenLock ? [process.execPath, "install", "--frozen-lockfile"] : [process.execPath, "install"],
       runtimeDir
     );
   }
