@@ -29,7 +29,7 @@ bun run market-data:download -- \
 
 Use NAS100-DUKA for the USA 100 Technical Index CFD. The command maps that AMI ID to Dukascopy instrument usatechidxusd. It does not map it to CME NQ. Choose a manageable date window first; start with H1/D1, then use M15/M5 when needed.
 
-Options include --price-side bid or ask for one side, --include-flats to request zero-volume candles, --no-cache to disable the downloader cache, and --batch-size/--batch-pause-ms/--request-interval-ms to tune request pacing. The command never routes orders and does not activate an AMI chart provider.
+Options include --price-side bid or ask for one side, --include-flats to request zero-volume candles, --no-cache to disable the downloader cache, and --batch-size/--batch-pause-ms/--request-interval-ms to tune request pacing. The command never routes orders and does not activate an AMI chart provider. The downloader does not retry empty partitions: the provider omits zero-volume candles by default, so weekends and holidays may be legitimately empty. Those periods remain visible for gap classification instead of being retried or filled.
 
 ## 1.1 Manual source download (optional)
 
