@@ -183,7 +183,19 @@ The chart desk offers two optional overlays:
 
 The prior-date overlay is intentionally labelled as an *observed UTC-date range*, not a broker/exchange session high or low. It records the source date and number of observed bars. If the feed skipped dates (for example, weekends or missing provider partitions), it chooses the nearest earlier date with data and does not synthesize bars. This is a research/chart reference only; session-specific levels require a verified instrument calendar and provider coverage audit.
 
-## 8. Keep the research chain reproducible
+## 8. Displacement-origin supply/demand zones
+
+The chart desk's **ZONES** overlay draws the latest non-invalidated DEMAND and SUPPLY zones from a separate causal engine. A zone is confirmed only when a closed candle:
+
+1. follows a fixed-size base cluster whose range is within the configured ATR multiple;
+2. has an impulse body meeting the configured ATR threshold; and
+3. closes beyond the base cluster high (DEMAND) or low (SUPPLY).
+
+Demand bounds use the base low wick and highest base body price. Supply bounds use the lowest base body price and base high wick. The engine tracks the first later retest and invalidation on a subsequent close beyond the distal boundary. It rejects sequences spanning unexplained candle gaps, using prior observed bar spacing rather than synthesizing missing bars.
+
+These are **displacement-origin heuristics**, not direct evidence of institutional orders, resting liquidity or order-book imbalance. The overlay is visual research only; it does not create opportunities, change strategy signals, or authorize orders. The definitions and thresholds are versioned in `src/lib/engine/displacement-zones.ts` and covered by deterministic tests for confirmation, retest, invalidation, gaps and future-data stability.
+
+## 9. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
