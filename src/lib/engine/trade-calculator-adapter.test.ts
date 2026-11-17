@@ -93,7 +93,7 @@ describe("canonical instrument risk economics adapter", () => {
   });
 
   test("unknown instrument IDs return no economics rather than a similar fallback", () => {
-    expect(getInstrumentRiskEconomics("NAS100")).toBeNull();
-    expect(getInstrumentRiskEconomics("XAUUSD")).toBeNull();
+    expect(getInstrumentRiskEconomics("NAS100", "USD")).toBeNull();
+    expect(getInstrumentRiskEconomics("XAUUSD", "USD")).toBeNull();
   });
 });
