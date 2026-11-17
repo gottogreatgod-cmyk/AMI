@@ -212,7 +212,20 @@ Safety ordering is deterministic: expiry first, invalidation next, trigger after
 
 This is an engine component only. Automatic candidate generation from live signals/zones, database persistence, multi-worker deduplication, UI/API surfacing and paper OMS handoff are still pending. The reducer does not calculate probability, quantity, P&L or actual execution price.
 
-## 10. Keep the research chain reproducible
+## 10. Contract-verified trade sizing (initial FTC-410 slice)
+
+The pure calculator in `src/lib/engine/trade-calculator.ts` requires:
+
+- verified tick size, quantity increment, P&L currency per point per unit, and notional multiplier;
+- verified commission and slippage costs per side;
+- a verified initial-margin rate **or** a verified initial-margin amount per quantity unit (exactly one model);
+- side-aware executable entry, stop and target prices (long entry/exit use ask/bid respectively; shorts use bid/ask respectively).
+
+It validates tick alignment and stop/target direction, computes stop risk plus two-leg costs, estimates net target reward, applies risk/leverage/available-margin caps, rounds quantity down to the verified increment, and checks minimum net reward/risk. It returns `NO_TRADE` with explicit reasons when required fields are missing/unverified, executable prices are unknown, costs consume the target, or no valid quantity fits.
+
+The calculator only returns a theoretical sizing result. It does not place or simulate an order. The verified economics in unit tests belong to a clearly named synthetic fixture; they are not specifications for any real exchange or broker. XAUUSD-DUKA and NAS100-DUKA remain `NO_TRADE` until their contract, cost and initial-margin metadata are independently verified.
+
+## 11. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
