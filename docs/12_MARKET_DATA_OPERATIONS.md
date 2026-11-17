@@ -71,6 +71,10 @@ python3 scripts/market-data/nq_sample_import.py \
 
 The importer pins the publisher's official ZIP SHA-256 (`0393ec579d453d016b5a838392349a0e6f21f3ddd211f3e7c24bb5c8cb63fc72`) and checks the internal file hashes, source tick ordering/schema, contract/exchange identity, tick totals, minute-bar equality and volume/trade-count reconciliation. It does not synthesize empty minute bars. The immutable output is stored separately under `data/market-data/futures-samples/nqz6/1m/`; it is not accepted by the Dukascopy-only `market-dataset-store` or the backtest engine.
 
+CME's official E-mini Nasdaq-100 specifications state a $20 multiplier per index point and a 0.25-point minimum tick ($5 per tick). AMI records those static fields as verified for NQZ6; the quantity increment is one contract. This does **not** verify current initial margin, commissions, broker fees, slippage, or a complete CME session calendar. The risk API continues to block NQZ6 until costs and a verified margin requirement are added.
+
+The importer stores and hashes the per-minute volume CSV but does not yet parse its rows independently; it checks tick-volume totals and compares tick-derived minute volume/trade counts to the published one-minute reference bars. The exact sample ZIP import still needs to be run in a local Python environment with PyArrow installed.
+
 The sample is a one-day evaluation pack, not full NQ history. It contains historical trades and derived minute bars, not BBO updates, resting depth or a real-time feed. Its use terms are restricted to private/internal evaluation, research and backtesting; redistribution, resale, sharing the data or cleaned derivatives, commercial use and shared-account access are not included. Read the source terms before using or sharing any output.
 
 ## 2. Normalize and fingerprint the CSV
