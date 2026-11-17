@@ -268,16 +268,9 @@ export async function applyPersistentOpportunityObservation(
     const next = evaluateOpportunity(current, observation);
     const newEvents = next.events.slice(current.events.length);
 
-    if (newEvents.length === 0) {
-      return {
-        created: false,
-        conflict: false,
-        opportunityId: row.id,
-        version: row.version,
-        snapshot: current,
-      };
-    }
-
+    // Persist each newer closed-bar watermark even when no visible transition
+    // occurs. Otherwise the same close timestamp could be replayed with altered
+    // OHLC values and evaluated a second time.
     const updated = await tx.opportunity.updateMany({
       where: {
         id,
@@ -304,9 +297,9 @@ export async function applyPersistentOpportunityObservation(
       );
     }
 
-    for (const [index, event] of newEvents.entries()) {
-      await tx.opportunityEvent.create({
-        data: {
+    if (newEvents.length > 0) {
+      await tx.opportunityEvent.createMany({
+        data: newEvents.map((event, index) => ({
           opportunityId: id,
           sequence: current.events.length + index,
           type: event.type,
@@ -315,7 +308,7 @@ export async function applyPersistentOpportunityObservation(
           atTs: event.atTs,
           barCloseTs: event.barCloseTs,
           reason: event.reason,
-        },
+        })),
       });
     }
 
