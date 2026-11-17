@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #356 green on 17 Nov 2026: Prisma client generation and isolated SQLite schema apply, lint, strict TypeScript, 122 Bun tests across 16 files, 6 Python importer tests, five offline CLI smoke checks and production build; browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #401 green on 17 Nov 2026: Prisma generation and isolated SQLite schema apply, lint, strict TypeScript, 135 Bun tests across 17 files (including DB-backed opportunity store and authenticated opportunity API), 6 Python importer tests, five offline CLI smoke checks and production build; browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -273,7 +273,7 @@
     {
       "id": "FTC-400",
       "name": "Explainable opportunity lifecycle",
-      "status": "Pure opportunity lifecycle reducer implemented and tested: WATCH, NEAR_TRIGGER, TRIGGERED, INVALIDATED, EXPIRED and SUPPRESSED; append-only transition events; stale/data/HTF gates; conservative same-bar invalidation priority; duplicate/out-of-order closed-bar idempotency. Candidate sourcing, persistence and UI/API integration pending",
+      "status": "Pure reducer plus Prisma persistence and authenticated user-scoped GET/POST API implemented and tested: append-only event sequence, per-user idempotency with conflict detection, optimistic versioning, every-new-bar watermark persisted, exact replay/terminal idempotency, manual-only candidate creation, strategy ownership and dataset eligibility checks. Automatic candidate sourcing from live signals/zones, trusted worker schedule/ingestion, UI and paper OMS handoff pending",
       "dependsOn": [
         "FTC-210",
         "FTC-310"
@@ -484,7 +484,9 @@
       "Risk calculator currency safety: canonical registry explicitly declares each instrument's P&L settlement currency; adapter requires account currency and only accepts verified FX rates labelled for the exact P&L/quote/account currency triplet; same-currency rates are exactly 1; API requires account currency and does not accept a client-supplied verified-FX flag",
       "Risk calculation API route regression tests cover authentication, malformed/strict request validation, required account currency, rejection of client-supplied contract facts, unknown instrument handling, crossed bid/ask pairs and calculation-only NO_TRADE for unverified XAUUSD-DUKA metadata",
       "FTC-140 NQZ6 dated-contract sample importer: pins official 2026-11-09 sample ZIP SHA-256, verifies per-file hashes, typed UTC Parquet tick/bar schemas, CME/NQZ6 identity and tick totals, reconstructs one-minute bars from dated ticks and checks OHLCV/tradeCount against published continuous bars; stores immutable local revision and original sources with private-use restrictions; Python unit tests and CLI smoke checks pass",
-      "NQZ6 canonical instrument identity has CME-verified static contract multiplier $20 per index point, 0.25-point minimum tick ($5 per contract tick) and one-contract quantity increment; commission/slippage and current margin remain unverified so the risk API continues to return NO_TRADE"
+      "NQZ6 canonical instrument identity has CME-verified static contract multiplier $20 per index point, 0.25-point minimum tick ($5 per contract tick) and one-contract quantity increment; commission/slippage and current margin remain unverified so the risk API continues to return NO_TRADE",
+      "FTC-400 durable opportunity persistence: existing Prisma Opportunity/OpportunityEvent models used as the single store; per-user dedupeKey with immutable candidate fingerprint and 409 conflict on changed setup; transactional CREATED/event sequence writes; optimistic versioned closed-bar updates; every newer close watermark persists even when no transition occurs; exact same-close/terminal replay is idempotent",
+      "Authenticated user-scoped /api/opportunities GET/POST: manual evidence only; server-generated creation/evidence timestamps; strict schema rejects client status, bars, event history and execution fields; validates canonical instrument, user-owned strategy, expiry and optional verified dataset/instrument/timeframe/signal policy; per-user listing and immutable event history; liveOrders/orderSubmitted remain false"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -503,7 +505,9 @@
       "A trusted, timestamped FX conversion provider and persisted user account currency are not yet integrated; cross-currency risk calculations therefore remain NO_TRADE unless a trusted conversion is supplied internally",
       "NQZ6 ZIP has not been downloaded/imported in this environment; actual PyArrow schema/runtime and end-to-end sample reconciliation remain unverified",
       "NQ minute-volume CSV is retained and hash-verified but its individual rows are not yet parsed/reconciled independently; tick volume is checked against the published one-minute bars and sample totals",
-      "NQZ6 sample archive is separate from the Dukascopy dataset store and is not wired into normal charts/backtests; it is one day of internal research data, not full NQ history"
+      "NQZ6 sample archive is separate from the Dukascopy dataset store and is not wired into normal charts/backtests; it is one day of internal research data, not full NQ history",
+      "Opportunity candidates are still created manually; no trusted worker currently generates them from live signals, structure or zones, schedules closed-bar updates, or sends events to a UI notification layer",
+      "Opportunity API has route-level integration tests but no browser UX, load/concurrency stress, retention/archive policy or end-to-end trusted market-feed worker validation yet"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -513,11 +517,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 356,
+      "latestFullyGreenRun": 401,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 122,
-      "testFiles": 16,
+      "tests": 135,
+      "testFiles": 17,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
