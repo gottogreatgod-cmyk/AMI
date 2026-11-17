@@ -15,8 +15,10 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const symbol = sp.get("symbol") ?? "";
     const tf = (sp.get("tf") ?? "1h") as Timeframe;
-    const limit = Math.min(parseInt(sp.get("limit") ?? "500", 10) || 500, 2000);
-    const days = Math.min(parseInt(sp.get("days") ?? "30", 10) || 30, 400);
+    const rawLimit = Number(sp.get("limit") ?? 500);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(Math.floor(rawLimit), 2000)) : 500;
+    const rawDays = Number(sp.get("days") ?? 30);
+    const days = Number.isFinite(rawDays) ? Math.max(1, Math.min(Math.floor(rawDays), 400)) : 30;
     const datasetId = sp.get("datasetId");
 
     if (!TIMEFRAMES.includes(tf)) return badRequest(`unknown timeframe ${tf}`);
