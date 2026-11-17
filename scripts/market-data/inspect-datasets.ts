@@ -79,7 +79,6 @@ async function main(): Promise<void> {
         fromTs: loaded.bars[0]?.t ?? null,
         toTs: loaded.bars[loaded.bars.length - 1]?.ct ?? null,
         importedAt: loaded.manifest.provenance.importedAt,
-        directory: loaded.directory,
       }),
       rawSha256: loaded.manifest.provenance.rawSha256,
       normalizedSha256: loaded.manifest.provenance.normalizedSha256,
