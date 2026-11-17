@@ -43,6 +43,23 @@ const THEME = {
   timeScale: { borderColor: "#1f303d", timeVisible: true, secondsVisible: false },
 };
 
+function normalizeBars(input: Bar[]): Bar[] {
+  const sorted = [...input]
+    .filter((bar) =>
+      [bar.t, bar.ct, bar.o, bar.h, bar.l, bar.c, bar.v].every(Number.isFinite) &&
+      bar.t > 0 && bar.ct >= bar.t && bar.o > 0 && bar.h > 0 && bar.l > 0 &&
+      bar.c > 0 && bar.v >= 0 &&
+      bar.h >= Math.max(bar.o, bar.c, bar.l) &&
+      bar.l <= Math.min(bar.o, bar.c, bar.h)
+    )
+    .sort((a, b) => a.t - b.t);
+
+  // Lightweight Charts requires strictly ascending, unique timestamps.
+  const byTime = new Map<number, Bar>();
+  for (const bar of sorted) byTime.set(bar.t, bar);
+  return [...byTime.values()];
+}
+
 export function MiniChart({
   bars,
   markers,
@@ -61,16 +78,18 @@ export function MiniChart({
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const markersRef = useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
+  const hasFitContentRef = useRef(false);
   const [ready, setReady] = useState(false);
 
   // create once
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const rect = el.getBoundingClientRect();
     const chart = createChart(el, {
       ...THEME,
-      width: el.clientWidth,
-      height: el.clientHeight,
+      width: Math.max(1, Math.floor(rect.width || el.clientWidth || 1)),
+      height: Math.max(1, Math.floor(rect.height || el.clientHeight || 160)),
     });
     const candle = chart.addSeries(CandlestickSeries, {
       upColor: "#4bc39a",
@@ -88,21 +107,38 @@ export function MiniChart({
     });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
     markersRef.current = createSeriesMarkers(candle, []);
+    hasFitContentRef.current = false;
     chartRef.current = chart;
     candleRef.current = candle;
     volumeRef.current = volume;
 
-    const ro = new ResizeObserver((entries) => {
-      const { width, height: h } = entries[0].target.getBoundingClientRect();
-      chart.applyOptions({ width: Math.floor(width), height: Math.floor(h) });
-    });
-    ro.observe(el);
+    const resize = (width: number, h: number) => {
+      if (width > 0 && h > 0) {
+        chart.applyOptions({ width: Math.max(1, Math.floor(width)), height: Math.max(1, Math.floor(h)) });
+      }
+    };
+    let ro: ResizeObserver | null = null;
+    const onWindowResize = () => {
+      const bounds = el.getBoundingClientRect();
+      resize(bounds.width, bounds.height);
+    };
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver((entries) => {
+        const bounds = entries[0]?.contentRect;
+        if (bounds) resize(bounds.width, bounds.height);
+      });
+      ro.observe(el);
+    } else {
+      window.addEventListener("resize", onWindowResize);
+    }
     // notify the data effect after the chart exists (deferred — keeps the
     // effect body free of synchronous setState)
     queueMicrotask(() => setReady(true));
     return () => {
-      ro.disconnect();
+      ro?.disconnect();
+      window.removeEventListener("resize", onWindowResize);
       chart.remove();
+      hasFitContentRef.current = false;
       chartRef.current = null;
       candleRef.current = null;
       volumeRef.current = null;
@@ -113,25 +149,34 @@ export function MiniChart({
   useEffect(() => {
     const candle = candleRef.current;
     const volume = volumeRef.current;
-    if (!candle || !volume || bars.length === 0) return;
-    const candleData: CandlestickData[] = bars.map((b) => ({
+    if (!candle || !volume || !ready) return;
+    const normalized = normalizeBars(bars);
+    const candleData: CandlestickData[] = normalized.map((b) => ({
       time: (b.t / 1000) as UTCTimestamp,
       open: b.o,
       high: b.h,
       low: b.l,
       close: b.c,
     }));
-    const volumeData: HistogramData[] = bars.map((b) => ({
+    const volumeData: HistogramData[] = normalized.map((b) => ({
       time: (b.t / 1000) as UTCTimestamp,
       value: b.v,
       color: b.c >= b.o ? "#4bc39a55" : "#ef777d55",
     }));
+    // Always clear as well as replace: empty/error responses must not leave
+    // another symbol's old candles rendered in this chart.
     candle.setData(candleData);
     volume.setData(volumeData);
-    chartRef.current?.timeScale().fitContent();
+    if (candleData.length > 0 && !hasFitContentRef.current) {
+      chartRef.current?.timeScale().fitContent();
+      hasFitContentRef.current = true;
+    }
+    if (candleData.length === 0) hasFitContentRef.current = false;
 
     if (markers && markers.length > 0 && markersRef.current) {
-      const sorted = [...markers].sort((a, b) => a.time - b.time);
+      const sorted = [...markers]
+        .filter((marker) => Number.isFinite(marker.time))
+        .sort((a, b) => a.time - b.time);
       const seriesMarkers: SeriesMarker<Time>[] = sorted.map((m) => ({
         time: (m.time / 1000) as UTCTimestamp,
         position: m.position,
@@ -149,8 +194,8 @@ export function MiniChart({
     <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"}>
       <div ref={containerRef} className="absolute inset-0" />
       {bars.length === 0 && (
-        <div className="absolute inset-0 grid place-items-center text-[10px] text-[#687e90]">
-          loading closed bars…
+        <div className="absolute inset-0 grid place-items-center text-[10px] text-[#687e90] pointer-events-none">
+          waiting for closed bars…
         </div>
       )}
     </div>
