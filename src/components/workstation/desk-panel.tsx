@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MiniChart } from "./mini-chart";
-import { buildStructureMarkers } from "@/lib/engine/market-structure";
+import {
+  buildPreviousAvailableUtcDateLevels,
+  buildStructureMarkers,
+} from "@/lib/engine/market-structure";
 import { usePolling, fmtPrice } from "./hooks";
 import type { Bar, DataQuality, Timeframe } from "@/lib/engine/types";
 import {
@@ -150,6 +153,7 @@ function ChartCard({
 }) {
   const selectedDatasetId = slot.datasetId ?? "provider";
   const [showStructure, setShowStructure] = useState(false);
+  const [showPriorUtcDate, setShowPriorUtcDate] = useState(false);
   const selectableDatasets = useMemo(
     () => datasets.filter((dataset) =>
       (dataset.qualityStatus === "PASS" || (includeReview && dataset.qualityStatus === "REVIEW")) &&
@@ -188,6 +192,13 @@ function ChartCard({
     () => showStructure ? buildStructureMarkers(visibleBars) : [],
     [showStructure, visibleBars]
   );
+  const priorUtcDateLevels = useMemo(
+    () => showPriorUtcDate ? buildPreviousAvailableUtcDateLevels(visibleBars) : null,
+    [showPriorUtcDate, visibleBars]
+  );
+  const priorUtcDateLabel = priorUtcDateLevels
+    ? new Date(priorUtcDateLevels.sourceDayStartTs).toISOString().slice(0, 10)
+    : null;
 
   return (
     <article
@@ -205,6 +216,19 @@ function ChartCard({
           </span>
         </button>
         <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowPriorUtcDate((value) => !value)}
+            aria-pressed={showPriorUtcDate}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              showPriorUtcDate ? "text-[#d5a85c] bg-[#302719]" : "text-[#8193a3]"
+            )}
+            title="Observed high/low from the prior available UTC calendar date; not an exchange session level"
+          >
+            PRIOR UTC {showPriorUtcDate ? "ON" : "OFF"}
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -283,6 +307,7 @@ function ChartCard({
         <MiniChart
           bars={visibleBars}
           markers={structureMarkers}
+          priorUtcDateLevels={priorUtcDateLevels}
           decimals={chartDecimals}
           chartId={`${chartSymbol}-${chartTf}-${selectedDataset?.datasetId ?? "provider"}`}
         />
@@ -296,7 +321,8 @@ function ChartCard({
             ? (dataMatchesSelection ? "STALE · " : "ERROR · ") + error
             : q?.datasetId
               ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars" +
-                (data?.dataset?.operationPolicy?.strategyBacktest.allowed ? " · BACKTEST ELIGIBLE" : " · CHART ONLY")
+                (data?.dataset?.operationPolicy?.strategyBacktest.allowed ? " · BACKTEST ELIGIBLE" : " · CHART ONLY") +
+                (showPriorUtcDate ? " · PRIOR UTC " + (priorUtcDateLabel ?? "N/A") : "")
               : q
               ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
               : loading
