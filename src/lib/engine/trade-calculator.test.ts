@@ -35,10 +35,14 @@ const defaultInput: TradeSizingInput = {
   availableMargin: 1_000,
   maxLeverage: 10,
   direction: "long",
-  entryExecutionPrice: 100,
-  stopExecutionPrice: 95,
-  targetExecutionPrice: 110,
-  executionPriceBasis: "SIDE_AWARE_EXECUTABLE",
+  quotes: {
+    entryBid: 99.75,
+    entryAsk: 100,
+    stopBid: 95,
+    stopAsk: 95.25,
+    targetBid: 110,
+    targetAsk: 110.25,
+  },
   minimumNetRewardRisk: 1,
 };
 
@@ -56,14 +60,18 @@ describe("verified contract trade calculator", () => {
     }
   });
 
-  test("returns NO_TRADE when spread-aware executable prices are unavailable", () => {
+  test("rejects crossed quote pairs instead of accepting a midpoint label", () => {
     const result = calculateTradeSize(verifiedSyntheticEconomics, {
       ...defaultInput,
-      executionPriceBasis: "MID_OR_UNKNOWN",
+      quotes: {
+        ...defaultInput.quotes,
+        entryBid: 100.1,
+        entryAsk: 100,
+      },
     });
     expect(result.status).toBe("NO_TRADE");
     if (result.status === "NO_TRADE") {
-      expect(result.reasons).toContain("SIDE_AWARE_EXECUTABLE_PRICES_REQUIRED");
+      expect(result.reasons).toContain("EXECUTION_QUOTES_CROSSED");
     }
   });
 
@@ -115,7 +123,11 @@ describe("verified contract trade calculator", () => {
     };
     const result = calculateTradeSize(expensive, {
       ...defaultInput,
-      targetExecutionPrice: 100.25,
+      quotes: {
+        ...defaultInput.quotes,
+        targetBid: 100.25,
+        targetAsk: 100.5,
+      },
     });
     expect(result.status).toBe("NO_TRADE");
     if (result.status === "NO_TRADE") {
@@ -126,7 +138,10 @@ describe("verified contract trade calculator", () => {
   test("rejects unaligned prices rather than silently rounding a trigger or stop", () => {
     const result = calculateTradeSize(verifiedSyntheticEconomics, {
       ...defaultInput,
-      entryExecutionPrice: 100.1,
+      quotes: {
+        ...defaultInput.quotes,
+        entryAsk: 100.1,
+      },
     });
     expect(result.status).toBe("NO_TRADE");
     if (result.status === "NO_TRADE") {
@@ -138,9 +153,14 @@ describe("verified contract trade calculator", () => {
     const result = calculateTradeSize(verifiedSyntheticEconomics, {
       ...defaultInput,
       direction: "short",
-      entryExecutionPrice: 100,
-      stopExecutionPrice: 105,
-      targetExecutionPrice: 90,
+      quotes: {
+        entryBid: 100,
+        entryAsk: 100.25,
+        stopBid: 104.75,
+        stopAsk: 105,
+        targetBid: 90,
+        targetAsk: 90.25,
+      },
     });
     expect(result.status).toBe("SIZED");
     if (result.status === "SIZED") expect(result.direction).toBe("short");
