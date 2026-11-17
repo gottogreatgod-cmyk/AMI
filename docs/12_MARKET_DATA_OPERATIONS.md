@@ -216,16 +216,18 @@ This is an engine component only. Automatic candidate generation from live signa
 
 The pure calculator in `src/lib/engine/trade-calculator.ts` requires:
 
-- verified tick size, quantity increment, P&L currency per point per unit, and notional multiplier;
+- verified tick size, quantity increment, P&L currency per point per unit, and quote-currency notional multiplier;
+- explicit account, P&L settlement and quote/notional currency codes;
+- independently verified conversion rates from P&L and quote currency into the account currency when they differ (the rate must be exactly 1 when the currencies match);
 - verified commission and slippage costs per side;
 - a verified initial-margin rate **or** a verified initial-margin amount per quantity unit (exactly one model);
 - side-aware executable entry, stop and target prices (long entry/exit use ask/bid respectively; shorts use bid/ask respectively).
 
 It validates tick alignment and stop/target direction, computes stop risk plus two-leg costs, estimates net target reward, applies risk/leverage/available-margin caps, rounds quantity down to the verified increment, and checks minimum net reward/risk. It returns `NO_TRADE` with explicit reasons when required fields are missing/unverified, executable prices are unknown, costs consume the target, or no valid quantity fits.
 
-The calculator is exposed through the authenticated `POST /api/risk/calculate` endpoint. The request supplies separate bid/ask pairs for entry, stop and target. Long plans use entry ASK and exit BID; short plans use entry BID and exit ASK. Crossed quote pairs are rejected. The endpoint reads contract, costs and margin only from server-side canonical metadata v3; client-supplied multipliers and margin assumptions are not accepted.
+The calculator is exposed through the authenticated `POST /api/risk/calculate` endpoint. The request supplies an explicit three-letter account-currency code and separate bid/ask pairs for entry, stop and target. Canonical instrument metadata explicitly declares P&L settlement currency rather than assuming that it matches the ticker or account. Cross-currency conversion is accepted only from an internally trusted, verified conversion object whose account/P&L/quote currency labels match exactly; the HTTP request cannot self-assert that an FX rate is verified. Long plans use entry ASK and exit BID; short plans use entry BID and exit ASK. Crossed quote pairs are rejected. The endpoint reads contract, costs and margin only from server-side canonical metadata v3; client-supplied multipliers and margin assumptions are not accepted.
 
-The calculator only returns a theoretical sizing result. It does not place or simulate an order. The verified economics in unit tests belong to a clearly named synthetic fixture; they are not specifications for any real exchange or broker. XAUUSD-DUKA and NAS100-DUKA remain `NO_TRADE` until their contract, cost and initial-margin metadata are independently verified.
+The calculator only returns a theoretical sizing result. It does not place or simulate an order. The verified economics in unit tests belong to a clearly named synthetic fixture; they are not specifications for any real exchange or broker. XAUUSD-DUKA and NAS100-DUKA remain `NO_TRADE` until their contract, cost and initial-margin metadata are independently verified. Cross-currency calculations also remain `NO_TRADE` until a trusted FX source and account-currency profile are integrated.
 
 ## 11. Keep the research chain reproducible
 
