@@ -2,7 +2,10 @@
 
 import { describe, expect, test } from "bun:test";
 import type { Bar } from "./types";
-import { buildStructureMarkers } from "./market-structure";
+import {
+  buildPreviousAvailableUtcDateLevels,
+  buildStructureMarkers,
+} from "./market-structure";
 
 const STEP = 60_000;
 
@@ -122,5 +125,79 @@ describe("causal market structure markers", () => {
     expect(buildStructureMarkers(bars)).toEqual([]);
     expect(buildStructureMarkers(bars, { leftBars: 0, rightBars: 1 })).toEqual([]);
     expect(buildStructureMarkers(bars, { leftBars: 1.5, rightBars: 1 })).toEqual([]);
+  });
+});
+
+
+describe("observed prior available UTC date levels", () => {
+  const utc = (date: string) => Date.parse(date);
+
+  test("uses the nearest earlier UTC calendar date and its observed high/low", () => {
+    const bars: Bar[] = [
+      { t: utc("2026-11-15T22:00:00Z"), o: 100, h: 104, l: 99, c: 102, v: 1, ct: utc("2026-11-15T22:14:59Z") },
+      { t: utc("2026-11-16T08:00:00Z"), o: 102, h: 110, l: 101, c: 108, v: 1, ct: utc("2026-11-16T08:14:59Z") },
+      { t: utc("2026-11-16T12:00:00Z"), o: 108, h: 112, l: 106, c: 109, v: 1, ct: utc("2026-11-16T12:14:59Z") },
+      { t: utc("2026-11-17T00:15:00Z"), o: 109, h: 111, l: 107, c: 110, v: 1, ct: utc("2026-11-17T00:29:59Z") },
+    ];
+
+    const levels = buildPreviousAvailableUtcDateLevels(bars);
+    expect(levels).toEqual({
+      sourceDayStartTs: utc("2026-11-16T00:00:00Z"),
+      latestDayStartTs: utc("2026-11-17T00:00:00Z"),
+      high: 112,
+      low: 101,
+      firstBarTs: utc("2026-11-16T08:00:00Z"),
+      lastBarTs: utc("2026-11-16T12:00:00Z"),
+      barsObserved: 2,
+    });
+  });
+
+  test("uses the previous available date across missing calendar days without fabricating bars", () => {
+    const bars: Bar[] = [
+      { t: utc("2026-11-13T12:00:00Z"), o: 100, h: 105, l: 98, c: 104, v: 1, ct: utc("2026-11-13T12:14:59Z") },
+      { t: utc("2026-11-17T12:00:00Z"), o: 104, h: 108, l: 103, c: 107, v: 1, ct: utc("2026-11-17T12:14:59Z") },
+    ];
+
+    const levels = buildPreviousAvailableUtcDateLevels(bars);
+    expect(levels?.sourceDayStartTs).toBe(utc("2026-11-13T00:00:00Z"));
+    expect(levels?.high).toBe(105);
+    expect(levels?.low).toBe(98);
+    expect(levels?.barsObserved).toBe(1);
+  });
+
+  test("sorting and duplicate timestamps match the chart's final-row-wins rule", () => {
+    const base = utc("2026-11-16T09:00:00Z");
+    const bars: Bar[] = [
+      { t: utc("2026-11-17T10:00:00Z"), o: 102, h: 104, l: 101, c: 103, v: 1, ct: utc("2026-11-17T10:14:59Z") },
+      { t: base, o: 100, h: 105, l: 99, c: 101, v: 1, ct: base + STEP - 1 },
+      { t: base, o: 101, h: 103, l: 97, c: 99, v: 2, ct: base + STEP - 1 },
+    ];
+
+    const levels = buildPreviousAvailableUtcDateLevels(bars);
+    expect(levels?.high).toBe(103);
+    expect(levels?.low).toBe(97);
+    expect(levels?.barsObserved).toBe(1);
+  });
+
+  test("returns null without at least two available UTC dates", () => {
+    const bars = makeBars([
+      { high: 10, low: 8, close: 9 },
+      { high: 12, low: 7, close: 11 },
+    ]);
+    expect(buildPreviousAvailableUtcDateLevels(bars)).toBeNull();
+    expect(buildPreviousAvailableUtcDateLevels([])).toBeNull();
+  });
+
+  test("future bars on the latest date cannot alter previous-date levels", () => {
+    const bars: Bar[] = [
+      { t: utc("2026-11-16T08:00:00Z"), o: 100, h: 105, l: 98, c: 104, v: 1, ct: utc("2026-11-16T08:14:59Z") },
+      { t: utc("2026-11-17T08:00:00Z"), o: 104, h: 108, l: 103, c: 107, v: 1, ct: utc("2026-11-17T08:14:59Z") },
+    ];
+    const before = buildPreviousAvailableUtcDateLevels(bars);
+    const after = buildPreviousAvailableUtcDateLevels([
+      ...bars,
+      { t: utc("2026-11-17T16:00:00Z"), o: 107, h: 999, l: 1, c: 108, v: 1, ct: utc("2026-11-17T16:14:59Z") },
+    ]);
+    expect(after).toEqual(before);
   });
 });
