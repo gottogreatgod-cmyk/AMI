@@ -27,6 +27,8 @@ from typing import Any, Iterable
 
 
 PACK_SCHEMA = "historical-futures-sample-pack/1"
+EXPECTED_SAMPLE_ARCHIVE = "es-nq-tick-sample-2026-11-09.zip"
+EXPECTED_SAMPLE_ARCHIVE_SHA256 = "0393ec579d453d016b5a838392349a0e6f21f3ddd211f3e7c24bb5c8cb63fc72"
 EXCHANGE = "CME"
 SYMBOL = "NQ"
 MINUTE_NS = 60_000_000_000
@@ -294,8 +296,12 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
         for chunk in iter(lambda: archive_file.read(1024 * 1024), b""):
             archive_sha_hash.update(chunk)
     archive_sha = archive_sha_hash.hexdigest()
-    if expected_zip_sha256 and archive_sha.lower() != expected_zip_sha256.lower():
-        raise ImportErrorDetail("Archive SHA-256 does not match --expected-zip-sha256.")
+    if archive_path.name != EXPECTED_SAMPLE_ARCHIVE:
+        raise ImportErrorDetail("This importer is pinned to " + EXPECTED_SAMPLE_ARCHIVE + ".")
+    if expected_zip_sha256 and expected_zip_sha256.lower() != EXPECTED_SAMPLE_ARCHIVE_SHA256:
+        raise ImportErrorDetail("The supplied expected SHA-256 differs from the pinned publisher checksum.")
+    if archive_sha.lower() != EXPECTED_SAMPLE_ARCHIVE_SHA256:
+        raise ImportErrorDetail("Archive SHA-256 does not match the publisher's pinned sample checksum.")
 
     try:
         with zipfile.ZipFile(archive_path) as archive:
@@ -316,18 +322,25 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
             checksums_raw = archive.read(members["SHA256SUMS"])
             sample_manifest = json.loads(source_manifest_raw)
             checksums = parse_sha256sums(checksums_raw)
+            if sample_manifest.get("archive_name") != EXPECTED_SAMPLE_ARCHIVE:
+                raise ImportErrorDetail("Sample manifest archive_name differs from the pinned sample.")
             if sample_manifest.get("schema") != PACK_SCHEMA:
                 raise ImportErrorDetail("Unsupported Historical Futures Data sample-pack schema.")
             if SYMBOL not in sample_manifest.get("symbols", []):
                 raise ImportErrorDetail("Sample pack does not declare NQ.")
-            start = parse_utc(sample_manifest["start_utc"])
-            end = parse_utc(sample_manifest["end_utc"])
+            try:
+                start = parse_utc(sample_manifest["start_utc"])
+                end = parse_utc(sample_manifest["end_utc"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ImportErrorDetail("Sample manifest UTC window is missing or invalid.") from exc
             start_ns = epoch_ns(start)
             end_ns = epoch_ns(end)
             if end_ns <= start_ns:
                 raise ImportErrorDetail("Sample UTC window is invalid.")
 
             files = sample_manifest.get("files", [])
+            if not isinstance(files, list) or not all(isinstance(item, dict) for item in files):
+                raise ImportErrorDetail("Sample manifest files must be an array of objects.")
             tick_meta = next(
                 (item for item in files if item.get("kind") == "ticks" and item.get("symbol") == SYMBOL),
                 None,
@@ -387,7 +400,7 @@ def import_sample_archive(archive_path: Path, output_root: Path, contract: str, 
             manifest_sha = sha256_bytes(source_manifest_raw)
             dataset_id = (
                 contract.lower() + "-m1-" + start.strftime("%Y%m%d") + "-" +
-                tick_sha[:8] + "-" + normalized_sha[:12]
+                archive_sha[:8] + "-" + tick_sha[:8] + "-" + normalized_sha[:12]
             )
             gaps = []
             for previous, current in zip(derived_bars, derived_bars[1:]):
@@ -537,7 +550,11 @@ def build_parser():
     parser.add_argument("--archive", required=True, help="Path to the downloaded Historical Futures Data sample ZIP.")
     parser.add_argument("--contract", default="NQZ6", help="Exact dated NQ contract in the sample manifest (default: NQZ6).")
     parser.add_argument("--output-root", default="data/market-data/futures-samples", help="Ignored local output root.")
-    parser.add_argument("--expected-zip-sha256", help="Optional independently published ZIP SHA-256.")
+    parser.add_argument(
+        "--expected-zip-sha256",
+        default=EXPECTED_SAMPLE_ARCHIVE_SHA256,
+        help="Publisher-pinned sample ZIP SHA-256 (default: the official checksum).",
+    )
     return parser
 
 
