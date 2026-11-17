@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSession, badRequest } from "@/lib/api";
 import { DatasetStoreError, loadMarketDataset } from "@/lib/data/market-dataset-store";
+import { assessMarketDatasetUse } from "@/lib/data/market-dataset-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ export async function GET(
         quality: loaded.manifest.quality,
         requestedRange: loaded.manifest.requestedRange,
         actualCoverage: loaded.manifest.actualCoverage,
+        operationPolicy: assessMarketDatasetUse(loaded.manifest),
         provenance: {
           provider: loaded.manifest.provenance.provider,
           providerInstrument: loaded.manifest.provenance.providerInstrument,
