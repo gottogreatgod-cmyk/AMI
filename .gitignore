@@ -68,3 +68,4 @@ db/*.db
 /tests/
 # Local market history and normalized datasets (never commit raw provider data)
 /data/market-data/
+/.dukascopy-cache/
