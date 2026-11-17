@@ -223,6 +223,8 @@ The pure calculator in `src/lib/engine/trade-calculator.ts` requires:
 
 It validates tick alignment and stop/target direction, computes stop risk plus two-leg costs, estimates net target reward, applies risk/leverage/available-margin caps, rounds quantity down to the verified increment, and checks minimum net reward/risk. It returns `NO_TRADE` with explicit reasons when required fields are missing/unverified, executable prices are unknown, costs consume the target, or no valid quantity fits.
 
+The calculator is exposed through the authenticated `POST /api/risk/calculate` endpoint. The request supplies separate bid/ask pairs for entry, stop and target. Long plans use entry ASK and exit BID; short plans use entry BID and exit ASK. Crossed quote pairs are rejected. The endpoint reads contract, costs and margin only from server-side canonical metadata v3; client-supplied multipliers and margin assumptions are not accepted.
+
 The calculator only returns a theoretical sizing result. It does not place or simulate an order. The verified economics in unit tests belong to a clearly named synthetic fixture; they are not specifications for any real exchange or broker. XAUUSD-DUKA and NAS100-DUKA remain `NO_TRADE` until their contract, cost and initial-margin metadata are independently verified.
 
 ## 11. Keep the research chain reproducible
