@@ -153,9 +153,15 @@ export async function createOrGetOpportunity(
         expiredAtTs: initial.expiredAtTs,
         suppressionReasonsJson: JSON.stringify(initial.suppressionReasons),
         events: {
-          create: initial.events.map((event, index) =>
-            eventCreateData("", index, event)
-          ).map(({ opportunityId: _unused, ...event }) => event),
+          create: initial.events.map((event, sequence) => ({
+            sequence,
+            type: event.type,
+            fromStatus: event.fromStatus,
+            toStatus: event.toStatus,
+            atTs: event.atTs,
+            barCloseTs: event.barCloseTs,
+            reason: event.reason,
+          })),
         },
       },
       include: { events: { orderBy: { sequence: "asc" } } },
