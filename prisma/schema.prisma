@@ -24,6 +24,7 @@ model User {
   strategies   Strategy[]
   runs         Run[]
   campaigns    Campaign[]
+  opportunities Opportunity[]
 }
 
 model Strategy {
@@ -93,4 +94,57 @@ model Campaign {
   runs         Run[]
 
   @@index([userId, createdAt])
+}
+
+
+// ---------------------------------------------------------------------------
+// Opportunity lifecycle persistence. Events are append-only rows; the
+// Opportunity row is the current snapshot protected by an optimistic version.
+// No order, position, fill or broker state is stored in these models.
+// ---------------------------------------------------------------------------
+
+model Opportunity {
+  id                       String             @id @default(cuid())
+  userId                   String
+  user                     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dedupeKey                String
+  symbol                   String
+  timeframe                String
+  strategyKey              String
+  direction                String
+  status                   String             @default("WATCH")
+  resumeStatus             String?
+  candidateJson            String
+  createdAtTs              Float
+  updatedAtTs              Float
+  lastProcessedBarCloseTs  Float?
+  triggeredAtTs            Float?
+  invalidatedAtTs          Float?
+  expiredAtTs              Float?
+  suppressionReasonsJson   String             @default("[]")
+  version                  Int                @default(1)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  events                   OpportunityEvent[]
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status, updatedAt])
+  @@index([userId, symbol, timeframe])
+}
+
+model OpportunityEvent {
+  id             String      @id @default(cuid())
+  opportunityId  String
+  opportunity    Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  sequence       Int
+  type           String
+  fromStatus     String?
+  toStatus       String
+  atTs           Float
+  barCloseTs     Float?
+  reason         String
+  createdAt      DateTime    @default(now())
+
+  @@unique([opportunityId, sequence])
+  @@index([opportunityId, sequence])
 }

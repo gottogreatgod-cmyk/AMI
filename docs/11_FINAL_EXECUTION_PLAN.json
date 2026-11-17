@@ -1,0 +1,541 @@
+{
+  "program": "AMI Final Test Candidate",
+  "version": "1.0",
+  "status": "implementation_blueprint",
+  "branch": "ami/repair-p0-chart-and-signal-integrity",
+  "operating_mode": [
+    "market_monitor",
+    "quant_research",
+    "conditional_opportunities",
+    "paper_trading"
+  ],
+  "live_orders_enabled": false,
+  "priorities": [
+    {
+      "id": "NAS100-DUKA",
+      "display": "USA 100 Technical Index CFD",
+      "provider": "Dukascopy",
+      "providerInstrument": "usatechidxusd",
+      "dataClass": "BROKER_CFD",
+      "role": "primary_free_historical_and_monitor_candidate",
+      "caveats": [
+        "Not CME NQ futures",
+        "Not official Nasdaq cash index",
+        "Provider-specific CFD prices"
+      ]
+    },
+    {
+      "id": "XAUUSD-DUKA",
+      "display": "XAU/USD spot",
+      "provider": "Dukascopy",
+      "providerInstrument": "xauusd",
+      "dataClass": "OTC_SPOT_METAL",
+      "role": "primary_free_historical_and_monitor_candidate",
+      "caveats": [
+        "OTC provider quote series",
+        "Volume is tick/feed volume unless independently proven",
+        "Not COMEX GC futures"
+      ]
+    },
+    {
+      "id": "NQ",
+      "display": "CME E-mini Nasdaq-100 dated futures",
+      "provider": "TBD",
+      "providerInstrument": "dated_contracts",
+      "dataClass": "EXCHANGE_FUTURES",
+      "role": "secondary_reference_and_futures_research",
+      "caveats": [
+        "Free sources currently found are samples/limited daily data",
+        "Do not size using NAS100 CFD metadata"
+      ]
+    },
+    {
+      "id": "NQ=F",
+      "display": "Yahoo continuous NQ futures",
+      "provider": "Yahoo Finance",
+      "providerInstrument": "NQ=F",
+      "dataClass": "CONTINUOUS_FUTURES",
+      "role": "secondary_research_crosscheck",
+      "caveats": [
+        "Not an individual tradable contract",
+        "Provider history coverage must be probed"
+      ]
+    },
+    {
+      "id": "GC=F",
+      "display": "Yahoo continuous Gold futures",
+      "provider": "Yahoo Finance",
+      "providerInstrument": "GC=F",
+      "dataClass": "CONTINUOUS_FUTURES",
+      "role": "secondary_gold_futures_crosscheck",
+      "caveats": [
+        "Not spot XAU/USD",
+        "Roll/adjustment methodology must be recorded"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "FTC-000",
+      "name": "Stabilize existing P0 repair",
+      "status": "P0 chart/polling repair, canonical live/backtest evaluation, strict CI and chart-source refresh transitions verified; manual browser sign-off pending",
+      "dependsOn": [],
+      "deliverables": [
+        "clean install",
+        "typecheck",
+        "lint",
+        "production build",
+        "regression tests"
+      ],
+      "exitGate": [
+        "no P0/P1 data integrity defects",
+        "HTF fail-closed tests pass",
+        "branch PR checks green"
+      ]
+    },
+    {
+      "id": "FTC-010",
+      "name": "CI and test harness",
+      "status": "GitHub Actions run #401 green on 17 Nov 2026: Prisma generation and isolated SQLite schema apply, lint, strict TypeScript, 135 Bun tests across 17 files (including DB-backed opportunity store and authenticated opportunity API), 6 Python importer tests, five offline CLI smoke checks and production build; browser/accessibility/security coverage pending",
+      "dependsOn": [
+        "FTC-000"
+      ],
+      "deliverables": [
+        "GitHub Actions",
+        "unit tests",
+        "integration tests",
+        "browser tests",
+        "security scan"
+      ],
+      "exitGate": [
+        "green clean checkout",
+        "critical engine invariants tested"
+      ]
+    },
+    {
+      "id": "FTC-100",
+      "name": "Canonical instrument metadata v2",
+      "status": "Canonical metadata v3 now separates BROKER_CFD, OTC_SPOT_METAL, CONTINUOUS_FUTURES, dated EXCHANGE_FUTURES and tokenized metal; NQZ6 CME static multiplier/tick/lot are verified, but margin/cost/session facts remain unverified; NAS100 CFD and XAU spot remain unverified for sizing",
+      "dependsOn": [
+        "FTC-010"
+      ],
+      "deliverables": [
+        "instrument class",
+        "provider IDs",
+        "tick/lot/point values",
+        "sessions",
+        "cost provenance",
+        "data-use labels"
+      ],
+      "exitGate": [
+        "no CFD/futures/spot metadata mixing"
+      ]
+    },
+    {
+      "id": "FTC-110",
+      "name": "Dukascopy XAUUSD historical importer",
+      "status": "pinned Dukascopy XAUUSD bid/ask downloader, UTC importer, SHA-256 revisions and explicit chart selection implemented; real download and session/coverage audit pending",
+      "dependsOn": [
+        "FTC-010",
+        "FTC-100"
+      ],
+      "deliverables": [
+        "raw download",
+        "UTC import",
+        "quality report",
+        "dataset manifest"
+      ],
+      "exitGate": [
+        "M5/M15/H1/D1 verified coverage"
+      ]
+    },
+    {
+      "id": "FTC-120",
+      "name": "Dukascopy USATECH history importer",
+      "status": "pinned Dukascopy USATECH CFD bid/ask downloader, UTC importer, SHA-256 revisions and explicit chart selection implemented; real download and session/coverage audit pending",
+      "dependsOn": [
+        "FTC-010",
+        "FTC-100"
+      ],
+      "deliverables": [
+        "raw download",
+        "UTC import",
+        "quality report",
+        "dataset manifest"
+      ],
+      "exitGate": [
+        "M5/M15/H1/D1 verified coverage"
+      ]
+    },
+    {
+      "id": "FTC-130",
+      "name": "Dataset versioning and quality CLI",
+      "status": "hash-bound revisions, source replay, normalized-bar regeneration, quality/volume/identity checks, catalogue CLI/API, chart UI and chart-versus-backtest eligibility policy committed; real-data session audit and resumable import jobs pending",
+      "dependsOn": [
+        "FTC-110",
+        "FTC-120"
+      ],
+      "deliverables": [
+        "SHA-256 manifests",
+        "dedup/gap checks",
+        "partitioned datasets",
+        "import resume"
+      ],
+      "exitGate": [
+        "reproducible dataset revisions"
+      ]
+    },
+    {
+      "id": "FTC-140",
+      "name": "NQ limited/free sample importer",
+      "status": "Pinned NQZ6 one-day free sample importer and canonical dated-futures identity implemented; reconstructs 1m bars from dated ticks, SHA-verifies the official pack and reconciles against published reference bars; private-use restrictions stored; Python helper tests and CLI smoke pass in CI run #356. Actual ZIP/Parquet import, PyArrow runtime validation and per-minute volume CSV row comparison pending; dataset remains outside the normal Dukascopy store/backtest engine",
+      "dependsOn": [
+        "FTC-100"
+      ],
+      "deliverables": [
+        "free samples",
+        "contract identifiers",
+        "schema fixture"
+      ],
+      "exitGate": [
+        "sample provenance and instrument class explicit"
+      ]
+    },
+    {
+      "id": "FTC-200",
+      "name": "Dukascopy current-rate feasibility",
+      "status": "isolated dukascopy-node 1.51.1 getRealTimeRates polling worker implemented with separate bid/ask candles and two-sided tick snapshots; real provider availability/cadence/terms validation pending",
+      "dependsOn": [
+        "FTC-110",
+        "FTC-120"
+      ],
+      "deliverables": [
+        "experimental getRealTimeRates adapter",
+        "poll cadence",
+        "freshness/error metrics"
+      ],
+      "exitGate": [
+        "monitor-only feed passes availability/cadence tests"
+      ]
+    },
+    {
+      "id": "FTC-210",
+      "name": "Market-data freshness/reconnect/backfill",
+      "status": "authenticated monitor API and chart-desk freshness display committed; last-good snapshot retention and NO_TICK/STALE/ERROR classification implemented; durable reconnect/backfill, sequence dedupe and session-aware freshness tests pending",
+      "dependsOn": [
+        "FTC-200"
+      ],
+      "deliverables": [
+        "last-good cache",
+        "stale states",
+        "dedup/out-of-order handling",
+        "backfill"
+      ],
+      "exitGate": [
+        "disconnect/recovery test passes"
+      ]
+    },
+    {
+      "id": "FTC-300",
+      "name": "Live multi-chart desk",
+      "status": "per-panel verified historical data, monitor state display, confirmed BOS/CHoCH, observed prior UTC-date range and optional displacement-origin zone boundaries implemented; real-time monitor is not injected into chart candles and browser/reconnect validation pending",
+      "dependsOn": [
+        "FTC-210"
+      ],
+      "deliverables": [
+        "forming candle",
+        "closed candle finalization",
+        "price/spread/freshness",
+        "overlays"
+      ],
+      "exitGate": [
+        "no repaint and reconnect continuity"
+      ]
+    },
+    {
+      "id": "FTC-310",
+      "name": "Market structure and supply/demand",
+      "status": "causal unique swing/BOS/CHoCH engine, observed prior available UTC-date high/low and ATR-normalized displacement-origin DEMAND/SUPPLY zones with retest/invalidation/gap guards implemented; verified broker/exchange session levels and volume-qualified session VWAP pending",
+      "dependsOn": [
+        "FTC-010",
+        "FTC-130"
+      ],
+      "deliverables": [
+        "prior levels",
+        "VWAP where volume valid",
+        "confirmed swing/structure",
+        "zones"
+      ],
+      "exitGate": [
+        "causal/no-repaint fixtures pass"
+      ]
+    },
+    {
+      "id": "FTC-400",
+      "name": "Explainable opportunity lifecycle",
+      "status": "Pure reducer plus Prisma persistence and authenticated user-scoped GET/POST API implemented and tested: append-only event sequence, per-user idempotency with conflict detection, optimistic versioning, every-new-bar watermark persisted, exact replay/terminal idempotency, manual-only candidate creation, strategy ownership and dataset eligibility checks. Automatic candidate sourcing from live signals/zones, trusted worker schedule/ingestion, UI and paper OMS handoff pending",
+      "dependsOn": [
+        "FTC-210",
+        "FTC-310"
+      ],
+      "deliverables": [
+        "WATCH/NEAR_TRIGGER/TRIGGERED/INVALIDATED/EXPIRED/SUPPRESSED",
+        "evidence",
+        "audit transitions"
+      ],
+      "exitGate": [
+        "deterministic lifecycle and dedup tests pass"
+      ]
+    },
+    {
+      "id": "FTC-410",
+      "name": "Trade calculator and risk policy",
+      "status": "Generic contract-verified risk calculator, canonical metadata v3 adapter and authenticated POST /api/risk/calculate implemented and route-tested. Requires explicit account currency, declared P&L/quote currencies and verified pair-labelled FX rates for cross-currency sizing; current XAUUSD-DUKA/NAS100-DUKA correctly return NO_TRADE. Trusted FX provider, persisted account-currency profile, UI/opportunity integration and independently verified contract/cost/margin facts pending",
+      "dependsOn": [
+        "FTC-100",
+        "FTC-400"
+      ],
+      "deliverables": [
+        "equity/risk inputs",
+        "quantity and costs",
+        "net R:R",
+        "notional/margin",
+        "NO TRADE rules"
+      ],
+      "exitGate": [
+        "contract-specific test vectors pass"
+      ]
+    },
+    {
+      "id": "FTC-500",
+      "name": "Reproducible research datasets",
+      "status": "not_started",
+      "dependsOn": [
+        "FTC-130"
+      ],
+      "deliverables": [
+        "pinned datasets/configs/costs",
+        "immutable trials"
+      ],
+      "exitGate": [
+        "exact run reproduction"
+      ]
+    },
+    {
+      "id": "FTC-510",
+      "name": "Walk-forward and holdout research",
+      "status": "not_started",
+      "dependsOn": [
+        "FTC-500"
+      ],
+      "deliverables": [
+        "chronological splits",
+        "walk-forward",
+        "parameter sensitivity",
+        "multiple-testing correction"
+      ],
+      "exitGate": [
+        "locked holdout remains untouched"
+      ]
+    },
+    {
+      "id": "FTC-600",
+      "name": "Persistent paper OMS",
+      "status": "not_started",
+      "dependsOn": [
+        "FTC-410",
+        "FTC-510"
+      ],
+      "deliverables": [
+        "paper orders",
+        "positions",
+        "append-only ledger",
+        "restart recovery"
+      ],
+      "exitGate": [
+        "forward paper audit chain intact"
+      ]
+    },
+    {
+      "id": "FTC-700",
+      "name": "FTC certification",
+      "status": "not_started",
+      "dependsOn": [
+        "all_prior"
+      ],
+      "deliverables": [
+        "security review",
+        "backup/restore",
+        "provider entitlement report",
+        "paper-forward report",
+        "release tag"
+      ],
+      "exitGate": [
+        "all CI and operational gates green",
+        "live order routing disabled"
+      ]
+    }
+  ],
+  "freeDataPolicy": {
+    "primaryHistorical": [
+      {
+        "provider": "Dukascopy",
+        "instrument": "xauusd",
+        "target": "XAU/USD spot",
+        "timeframes": [
+          "m1",
+          "m5",
+          "m15",
+          "m30",
+          "h1",
+          "h4",
+          "d1"
+        ],
+        "status": "candidate_to_validate",
+        "notes": [
+          "Historical feed via dukascopy-node",
+          "retain bid/ask where available",
+          "OTC and provider-specific"
+        ]
+      },
+      {
+        "provider": "Dukascopy",
+        "instrument": "usatechidxusd",
+        "target": "USA 100 Technical Index CFD",
+        "timeframes": [
+          "m1",
+          "m5",
+          "m15",
+          "m30",
+          "h1",
+          "h4",
+          "d1"
+        ],
+        "status": "candidate_to_validate",
+        "notes": [
+          "Nasdaq-100-style index CFD proxy",
+          "not NQ futures",
+          "not cash index"
+        ]
+      }
+    ],
+    "secondary": [
+      {
+        "provider": "HistoricalFuturesData",
+        "instrument": "NQ",
+        "status": "free_samples_and_limited_history",
+        "notes": [
+          "Free sample / free account subset only",
+          "full history advertised as paid"
+        ]
+      },
+      {
+        "provider": "Yahoo Finance",
+        "instrument": "NQ=F;GC=F",
+        "status": "secondary_research_only",
+        "notes": [
+          "Continuous series",
+          "probe true per-interval retention"
+        ]
+      }
+    ],
+    "exclusions": [
+      "NASDAQCOM is Nasdaq Composite daily close, not Nasdaq-100",
+      "Alpha Vantage free tier is not a viable intraday index primary",
+      "CME DataMine is official but paid historical data",
+      "PAXGUSDT is not XAU/USD spot or GC futures"
+    ]
+  },
+  "safety": {
+    "liveOrders": false,
+    "opportunityScoresAreProbabilities": false,
+    "staleDataSuppressesNewCandidates": true,
+    "unverifiedContractSpecsSuppressSizing": true,
+    "losingExperimentsPreserved": true
+  },
+  "implementationSnapshot": {
+    "date": "2026-11-18",
+    "completedInBranch": [
+      "P0 chart polling/refresh and chart-series lifecycle repairs",
+      "Canonical live/backtest signal evaluator and higher-timeframe fail-closed behavior",
+      "GitHub Actions with frozen dependency installation, Prisma generation, lint, strict typecheck, Bun tests, offline market-data CLI smoke tests and production build",
+      "Deterministic tests for indicators, causal resampling, next-open fills, HTF gating, market identity, source normalization, dataset hashes and tamper detection",
+      "Canonical instrument metadata separating broker CFD, OTC spot metal, exchange futures, continuous futures and tokenized gold",
+      "Pinned Dukascopy 1.51.1 download orchestrator for XAUUSD and USATECH CFD with bid/ask isolation, conservative pacing, retry controls, local cache and explicit handling of normal empty sessions",
+      "UTC CSV importer with SHA-256 raw/normalized hashes, immutable dataset revisions, OHLC validation, duplicate/gap diagnostics and no synthetic bars",
+      "Dataset catalog and explicit loader that replays the original CSV, recreates normalized bars and checks data-class identity, quote side, volume metadata, quality labels and dataset hashes",
+      "Authenticated dataset catalogue and paginated verified-bar APIs",
+      "Chart-panel selector for explicit PASS-labelled local historical revisions; exact dataset response identity is required before bars are displayed",
+      "Chart desk defaults to PASS-labelled local revisions and exposes a deliberate REVIEW opt-in; REVIEW requests explicitly set allowReview=true and still pass full source/hash validation",
+      "Immutable local historical chart sources refetch only on manual refresh or a long safety interval; live provider charts keep their shorter polling cadence",
+      "Optional per-chart confirmed swing structure overlay: unique swing pivots only become available after right-side closed-bar confirmation; BOS/CHoCH markers appear on actual break candles and are never backdated",
+      "Structure engine sorts and deduplicates input bars to match chart candle normalization; fixtures cover confirmation delay, CHoCH direction changes, no future-data repaint, equal-pivot suppression and duplicate/out-of-order input",
+      "Optional experimental current-rate monitor: pinned dukascopy-node 1.51.1 installed in isolated local runtime with separate lock; worker polls tick plus separate bid/ask candles; writes atomic local snapshots; supports Ctrl+C and one-shot mode",
+      "Authenticated monitor snapshot API and chart-desk state/spread display; monitor status remains separate from the chart's historical/provider candle source",
+      "Monitor normalization separates closed/forming bars, retains bid/ask OHLC separately, computes top-of-book spread from paired ticks, and classifies NO_TICK/FRESH/STALE",
+      "Operation capability policy distinguishes PASS/REVIEW chart and side-specific signal research from backtesting; single-side bid/ask history cannot unlock strategy backtests, paper execution or live routing",
+      "Chart data source is persisted per panel by exact immutable dataset ID; changing back to provider feed clears the old local chart data immediately",
+      "Observed prior available UTC calendar-date high/low overlay: uses only observed closed bars, skips missing dates without synthetic fill, labels provenance date and observed bar count, and does not claim exchange-session semantics",
+      "Separate displacement-origin DEMAND/SUPPLY zone engine with ATR-normalized base compression and closed-bar impulse confirmation; tracks retest/invalidation, rejects unexplained candle gaps, and exposes latest non-invalidated zone boundaries in the optional chart ZONES overlay",
+      "Pure opportunity lifecycle state machine with required timestamped evidence, WATCH/NEAR_TRIGGER/TRIGGERED/INVALIDATED/EXPIRED/SUPPRESSED states, append-only transition events, stale/data/HTF suppression and resume, invalidation-first same-bar safety priority, and duplicate/out-of-order observation idempotency",
+      "Generic contract-verified trade calculator: requires verified contract tick/quantity/point/notional economics, verified fees/slippage, verified initial-margin rate or per-unit requirement, and side-aware executable entry/stop/target prices; calculates stop risk, two-leg costs, net reward/risk, leverage/margin caps and explicit NO_TRADE reasons",
+      "Canonical instrument metadata v3 now carries explicit notional multiplier and initial margin rate/per-unit fields; all existing instruments remain null/unverified unless an authoritative specification is added",
+      "Authenticated POST /api/risk/calculate adapts server-owned canonical metadata and requires separate bid/ask quote pairs for entry, stop and target; rejects crossed quotes, unverified contract/cost/margin, invalid ticks, inadequate net R:R and quantities outside risk/margin caps",
+      "Risk calculator currency safety: canonical registry explicitly declares each instrument's P&L settlement currency; adapter requires account currency and only accepts verified FX rates labelled for the exact P&L/quote/account currency triplet; same-currency rates are exactly 1; API requires account currency and does not accept a client-supplied verified-FX flag",
+      "Risk calculation API route regression tests cover authentication, malformed/strict request validation, required account currency, rejection of client-supplied contract facts, unknown instrument handling, crossed bid/ask pairs and calculation-only NO_TRADE for unverified XAUUSD-DUKA metadata",
+      "FTC-140 NQZ6 dated-contract sample importer: pins official 2026-11-09 sample ZIP SHA-256, verifies per-file hashes, typed UTC Parquet tick/bar schemas, CME/NQZ6 identity and tick totals, reconstructs one-minute bars from dated ticks and checks OHLCV/tradeCount against published continuous bars; stores immutable local revision and original sources with private-use restrictions; Python unit tests and CLI smoke checks pass",
+      "NQZ6 canonical instrument identity has CME-verified static contract multiplier $20 per index point, 0.25-point minimum tick ($5 per contract tick) and one-contract quantity increment; commission/slippage and current margin remain unverified so the risk API continues to return NO_TRADE",
+      "FTC-400 durable opportunity persistence: existing Prisma Opportunity/OpportunityEvent models used as the single store; per-user dedupeKey with immutable candidate fingerprint and 409 conflict on changed setup; transactional CREATED/event sequence writes; optimistic versioned closed-bar updates; every newer close watermark persists even when no transition occurs; exact same-close/terminal replay is idempotent",
+      "Authenticated user-scoped /api/opportunities GET/POST: manual evidence only; server-generated creation/evidence timestamps; strict schema rejects client status, bars, event history and execution fields; validates canonical instrument, user-owned strategy, expiry and optional verified dataset/instrument/timeframe/signal policy; per-user listing and immutable event history; liveOrders/orderSubmitted remain false"
+    ],
+    "notYetCompleted": [
+      "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
+      "New XAUUSD-DUKA and NAS100-DUKA datasets are not in the active tradable instrument registry",
+      "Strategy/backtest runner does not yet consume these new local datasets; they are currently selectable in charts only",
+      "Contract point values, quantity increments, spread/commission/financing and session schedules remain unverified for the two new instruments",
+      "No production real-time stream or guaranteed persistent WebSocket feed is enabled",
+      "API route-level and browser automation, provider freshness/reconnect validation and security scanning remain pending",
+      "Walk-forward/locked holdout research, paper OMS and forward certification remain pending",
+      "Structure overlays do not yet include verified exchange/broker session levels or volume-qualified session VWAP; displacement-origin zones are heuristic chart research, not order-flow evidence",
+      "Experimental monitor has not yet been run against the provider in a local environment; availability, current-rate cadence and provider terms remain unverified",
+      "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay",
+      "Opportunity candidates are not yet generated automatically from live signals/zones, persisted in the database, deduplicated across workers, surfaced in the UI/API or connected to a paper OMS",
+      "Trade calculator is not yet surfaced in UI/API or attached to opportunities; no verified XAUUSD-DUKA or NAS100-DUKA contract, fee, slippage or initial-margin specification is supplied, so those instruments remain NO_TRADE",
+      "No current primary instrument has verified contract point value, notional multiplier, commission/slippage and initial margin; therefore XAUUSD-DUKA and NAS100-DUKA remain NO_TRADE through the new sizing API",
+      "A trusted, timestamped FX conversion provider and persisted user account currency are not yet integrated; cross-currency risk calculations therefore remain NO_TRADE unless a trusted conversion is supplied internally",
+      "NQZ6 ZIP has not been downloaded/imported in this environment; actual PyArrow schema/runtime and end-to-end sample reconciliation remain unverified",
+      "NQ minute-volume CSV is retained and hash-verified but its individual rows are not yet parsed/reconciled independently; tick volume is checked against the published one-minute bars and sample totals",
+      "NQZ6 sample archive is separate from the Dukascopy dataset store and is not wired into normal charts/backtests; it is one day of internal research data, not full NQ history",
+      "Opportunity candidates are still created manually; no trusted worker currently generates them from live signals, structure or zones, schedules closed-bar updates, or sends events to a UI notification layer",
+      "Opportunity API has route-level integration tests but no browser UX, load/concurrency stress, retention/archive policy or end-to-end trusted market-feed worker validation yet"
+    ],
+    "operatingSafety": {
+      "liveOrdersEnabled": false,
+      "unverifiedContractSizingEnabled": false,
+      "historicalDatasetBacktestEnabled": false,
+      "reviewDatasetsEnabledByDefault": false,
+      "syntheticGapFillingEnabled": false
+    },
+    "validation": {
+      "latestFullyGreenRun": 401,
+      "latestMonitorRun": 161,
+      "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
+      "tests": 135,
+      "testFiles": 17,
+      "lint": true,
+      "strictTypecheck": true,
+      "productionBuild": true,
+      "importerCliSmoke": true,
+      "downloaderCliSmoke": true,
+      "catalogueCliSmoke": true,
+      "monitorCliHelpSmoke": true,
+      "realMarketDataDownloaded": false,
+      "realtimeProviderPolled": false,
+      "pythonTests": 6,
+      "pythonTestFiles": 1,
+      "pythonImporterCompile": true,
+      "nqSampleCliSmoke": true,
+      "realNqSampleImported": false
+    }
+  }
+}

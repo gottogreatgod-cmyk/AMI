@@ -66,3 +66,6 @@ db/*.db
 /.zscripts/
 # sandbox runtime/container checks (not AMI tests)
 /tests/
+# Local market history and normalized datasets (never commit raw provider data)
+/data/market-data/
+/.dukascopy-cache/
