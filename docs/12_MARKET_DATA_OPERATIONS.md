@@ -107,6 +107,15 @@ bun run market-data:inspect -- verify <dataset-id> --allow-review
 
 A REJECTED revision can never be loaded, even with that option. Verification checks the original source SHA-256, normalized CSV SHA-256, canonical provider and instrument class, quote side, time interval, row count, strictly increasing timestamps, close timestamps, UTC range, and OHLC/volume integrity. The catalogue reports manifest metadata, not a verified status; verification happens when a specific revision is loaded. The chart desk includes PASS-labelled revisions by default. Its REVIEW switch is off initially; turn it on only when you intend to inspect a revision with duplicates or unclassified gaps. The explicit selection sends allowReview=true to the candles endpoint, but the loader still verifies hashes, source replay, OHLC, timestamps and quality metadata.
 
+The `verify` response also includes an operation policy:
+
+- **Chart:** allowed for PASS revisions; REVIEW needs the explicit opt-in; REJECTED is never allowed.
+- **Signal research:** allowed only under the same quality gate and is clearly identified as one-sided quote data.
+- **Strategy backtest:** blocked for the current imports until a verified paired bid/ask dataset, instrument contract economics, and costs are available.
+- **Paper execution and live order routing:** blocked. The paper OMS has not been certified and live routing remains disabled.
+
+A visually valid chart is not evidence that the dataset can produce realistic fills or position sizes. Do not bypass the operation policy by manually supplying a side-only CSV to a backtest.
+
 ## 5. Authenticated API
 
 The workstation backend also exposes the local catalogue to authenticated sessions:
@@ -127,7 +136,7 @@ GET /api/candles?symbol=NAS100-DUKA&tf=15m&datasetId=<exact-dataset-id>&limit=10
 
 The symbol, supported timeframe and dataset ID must agree. The response includes the exact quote side and manifest hashes. The active market quote API and normal backtest provider remain unchanged; a historical dataset is not automatically a live feed or a cost-verified tradeable instrument.
 
-## 7. Experimental current-rate monitor (optional)
+## 6. Experimental current-rate monitor (optional)
 
 The current-rate monitor is a separate process from the historical downloader and the workstation's normal chart provider. It uses the documented Node API `getRealTimeRates` from the pinned `dukascopy-node@1.51.1` package. The provider documentation marks this API experimental; treat it as a best-effort polling monitor, not a persistent WebSocket or exchange-grade stream.
 
@@ -165,11 +174,11 @@ The monitor never submits orders, creates trade candidates, calculates position 
 
 Provider reference: https://www.dukascopy-node.app/downloading-real-time-data
 
-## 8. Keep the research chain reproducible
+## 7. Keep the research chain reproducible
 
 Keep downloaded files and normalized datasets local. data/market-data/ is ignored by Git. Commit the importer, tests, schemas and run references — not private market-data archives. Before sharing or redistributing source data, check the underlying data provider's terms. The downloader's MIT code licence is not a market-data redistribution licence.
 
-The dataset is not yet wired into getBars(), the existing charts, or the backtest runner. That integration is a separate gate: it must select a dataset revision explicitly, prove instrument/timeframe compatibility, retain provenance in every run, and block sizing when contract economics remain unverified.
+The dataset is wired into the chart API and chart desk only, using an exact immutable dataset ID and hash/source verification. It is not yet wired into getBars() or the strategy/backtest runner. That integration remains a separate gate: it must retain dataset identity in every run and must not create executable fills or position sizes until paired bid/ask data, instrument contract economics and costs are verified.
 
 ## References
 
