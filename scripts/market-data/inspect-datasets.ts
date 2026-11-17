@@ -24,7 +24,7 @@ function usage(): string {
   ].join("\n");
 }
 
-function compact(entry: DatasetCatalogEntry) {
+function compact(entry: Omit<DatasetCatalogEntry, "directory">) {
   return {
     datasetId: entry.datasetId,
     instrumentId: entry.instrumentId,
