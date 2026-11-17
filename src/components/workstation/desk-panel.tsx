@@ -147,7 +147,7 @@ function ChartCard({
         <button onClick={onFocus} disabled={Boolean(selectedDataset)} className="flex items-baseline gap-2 min-w-0 text-left disabled:cursor-default">
           <strong className="text-[12px] truncate">{chartSymbol}</strong>
           <span className="text-[9px] text-[#8193a3] truncate hidden sm:inline">
-            {selectedDataset ? "LOCAL · " + selectedDataset.dataClass : q?.providerSymbol ?? ""}
+            {selectedDataset ? "LOCAL · " + selectedDataset.displayName : q?.providerSymbol ?? ""}
           </span>
         </button>
         <div className="flex items-center gap-1.5">
@@ -202,11 +202,11 @@ function ChartCard({
       <div className="flex gap-2.5 px-2.5 pb-1 text-[9px] text-[#8295a6] tnum">
         {last && (
           <>
-            <span>O {fmtPrice(last.o, Math.min(priceDecimals, 2))}</span>
-            <span>H {fmtPrice(last.h, Math.min(priceDecimals, 2))}</span>
-            <span>L {fmtPrice(last.l, Math.min(priceDecimals, 2))}</span>
+            <span>O {fmtPrice(last.o, Math.min(chartDecimals, 2))}</span>
+            <span>H {fmtPrice(last.h, Math.min(chartDecimals, 2))}</span>
+            <span>L {fmtPrice(last.l, Math.min(chartDecimals, 2))}</span>
             <span className={last.c >= last.o ? "text-[#4bc39a]" : "text-[#ef777d]"}>
-              C {fmtPrice(last.c, Math.min(priceDecimals, 2))}
+              C {fmtPrice(last.c, Math.min(chartDecimals, 2))}
             </span>
           </>
         )}
@@ -284,7 +284,7 @@ export function DeskPanel({
         <div className="flex items-center gap-2">
           <span>CHART CANVAS</span>
           <span className="text-[9px] font-normal text-[#687e90]">
-            closed bars · independent panels · {localDatasets.filter((dataset) => dataset.qualityStatus === "PASS").length} verified-ready local revisions
+            closed bars · independent panels · {localDatasets.filter((dataset) => dataset.qualityStatus === "PASS").length} PASS-labelled local revisions
           </span>
         </div>
         <div className="flex items-center gap-1">
