@@ -204,7 +204,7 @@
     {
       "id": "FTC-200",
       "name": "Dukascopy current-rate feasibility",
-      "status": "not_started",
+      "status": "isolated dukascopy-node 1.51.1 runtime and optional getRealTimeRates polling worker implemented; bid/ask candles, two-sided latest tick, forming/closed separation and local snapshots are available; real provider availability/cadence/terms tests pending",
       "dependsOn": [
         "FTC-110",
         "FTC-120"
@@ -221,7 +221,7 @@
     {
       "id": "FTC-210",
       "name": "Market-data freshness/reconnect/backfill",
-      "status": "not_started",
+      "status": "authenticated monitor snapshot API and chart-desk freshness/status display implemented; worker preserves last good snapshot and reports NO_TICK/STALE/ERROR; reconnect/backfill, duplicate snapshot sequencing and session-aware freshness tests pending",
       "dependsOn": [
         "FTC-200"
       ],
@@ -238,7 +238,7 @@
     {
       "id": "FTC-300",
       "name": "Live multi-chart desk",
-      "status": "historical chart selection and optional causal closed-bar BOS/CHoCH structure overlay committed; live feed, forming candle finalization, supply/demand zones, VWAP and reconnect continuity pending",
+      "status": "historical chart source, confirmed BOS/CHoCH overlay and experimental monitor status display implemented; monitor ticks are not yet injected into chart series; forming-candle live finalization and reconnect continuity pending",
       "dependsOn": [
         "FTC-210"
       ],
@@ -255,7 +255,7 @@
     {
       "id": "FTC-310",
       "name": "Market structure and supply/demand",
-      "status": "confirmed swing and BOS/CHoCH overlays implemented with right-side confirmation, no retroactive marking, future-data invariance and chronological/deduplicated input tests; supply/demand zones, prior-session levels and VWAP where volume is valid pending",
+      "status": "confirmed swing/BOS/CHoCH overlay implemented and validated; supply/demand zones, prior-session levels and volume-qualified session VWAP pending",
       "dependsOn": [
         "FTC-010",
         "FTC-130"
@@ -469,7 +469,10 @@
       "Chart desk defaults to PASS-labelled local revisions and exposes a deliberate REVIEW opt-in; REVIEW requests explicitly set allowReview=true and still pass full source/hash validation",
       "Immutable local historical chart sources refetch only on manual refresh or a long safety interval; live provider charts keep their shorter polling cadence",
       "Optional per-chart confirmed swing structure overlay: unique swing pivots only become available after right-side closed-bar confirmation; BOS/CHoCH markers appear on actual break candles and are never backdated",
-      "Structure engine sorts and deduplicates input bars to match chart candle normalization; fixtures cover confirmation delay, CHoCH direction changes, no future-data repaint, equal-pivot suppression and duplicate/out-of-order input"
+      "Structure engine sorts and deduplicates input bars to match chart candle normalization; fixtures cover confirmation delay, CHoCH direction changes, no future-data repaint, equal-pivot suppression and duplicate/out-of-order input",
+      "Optional experimental current-rate monitor: pinned dukascopy-node 1.51.1 installed in isolated local runtime with separate lock; worker polls tick plus separate bid/ask candles; writes atomic local snapshots; supports Ctrl+C and one-shot mode",
+      "Authenticated monitor snapshot API and chart-desk state/spread display; monitor status remains separate from the chart's historical/provider candle source",
+      "Monitor normalization separates closed/forming bars, retains bid/ask OHLC separately, computes top-of-book spread from paired ticks, and classifies NO_TICK/FRESH/STALE"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -479,7 +482,9 @@
       "No production real-time stream or guaranteed persistent WebSocket feed is enabled",
       "API route-level and browser automation, provider freshness/reconnect validation and security scanning remain pending",
       "Walk-forward/locked holdout research, paper OMS and forward certification remain pending",
-      "Structure overlays do not yet include supply/demand zones, prior-day/session levels or session-anchored VWAP"
+      "Structure overlays do not yet include supply/demand zones, prior-day/session levels or session-anchored VWAP",
+      "Experimental monitor has not yet been run against the provider in a local environment; availability, current-rate cadence and provider terms remain unverified",
+      "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -489,9 +494,9 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestCompletedRun": 138,
-      "completedAt": "2026-11-17",
-      "result": "success",
+      "latestFullyGreenRun": 138,
+      "latestMonitorRun": 161,
+      "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
       "tests": 51,
       "testFiles": 8,
       "lint": true,
@@ -500,7 +505,9 @@
       "importerCliSmoke": true,
       "downloaderCliSmoke": true,
       "catalogueCliSmoke": true,
-      "realMarketDataDownloaded": false
+      "monitorCliHelpSmoke": true,
+      "realMarketDataDownloaded": false,
+      "realtimeProviderPolled": false
     }
   }
 }
