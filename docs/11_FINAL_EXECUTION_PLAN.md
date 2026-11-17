@@ -7,14 +7,14 @@ This snapshot separates committed code from live-market validation and research-
 | Work item | Current evidence | Remaining gate |
 |---|---|---|
 | P0 workstation and signal repair | Refresh/polling/chart lifecycle and live/backtest evaluator changes committed | Manual browser sign-off |
-| CI and deterministic engine/data tests | GitHub Actions installs locked dependencies, generates Prisma, lints, type-checks, runs Bun tests and builds production output | Add route-level integration, browser, accessibility and security tests |
+| CI and deterministic engine/data tests | GitHub Actions run #124 passed on 17 November 2026: frozen install, Prisma, lint, strict type-check, 45 Bun tests across 7 files, three offline CLI smoke checks and production build | Add route-level integration, browser, accessibility and security tests |
 | Canonical instrument metadata | CFD, OTC spot, dated futures, continuous futures and tokenized metal are distinct | Migrate active registry and verify contract/session economics |
 | XAU/USD and NAS100 history | Pinned Dukascopy downloader, separate bid/ask imports, UTC normalization and manifests committed | Import real data and audit actual coverage/session gaps |
 | Dataset provenance and verification | Hash-bound IDs; source CSV replay; normalized CSV regeneration; OHLC, duplicate, gap, volume, identity and quality checks; CLI/API catalogue | Resumable downloads and real-data audit |
-| Historical chart selection | Chart panels can select one exact PASS-labelled local revision at a matching timeframe; data is shown only after hash and source replay verification | Browser UX validation and a real imported dataset |
+| Historical chart selection | Chart panels can select one exact PASS-labelled local revision by default; REVIEW revisions require the explicit REVIEW switch; data is shown only after hash and source replay verification | Browser UX validation and a real imported dataset |
 | Research/backtest integration | Not enabled for XAUUSD-DUKA or NAS100-DUKA | Verify instrument costs/contract economics, then add exact dataset ID and provenance to runs |
 
-The Dukascopy workflow downloads bid and ask separately and retains the source export, normalized bars and SHA-256 manifest under the ignored local path `data/market-data/`. The importer does not fill gaps. Zero-volume candles are omitted by the provider by default, so the download orchestrator does not retry every empty partition; weekends/holidays remain for calendar-aware gap classification.
+The Dukascopy workflow downloads bid and ask separately and retains the source export, normalized bars and SHA-256 manifest under the ignored local path `data/market-data/`. The importer does not fill gaps. Zero-volume candles are omitted by the provider by default, so the download orchestrator does not retry every empty partition; weekends/holidays remain for calendar-aware gap classification. PASS datasets are offered by default in chart panels; REVIEW datasets are available only after a deliberate UI opt-in and still undergo full verification.
 
 **Important boundary:** the new local datasets are currently chart-selectable only. They are not yet wired into the strategy/backtest runner and the two new instruments are not in the active tradable instrument registry. Their contract point values, quantity increments, fee/spread/financing costs and calendars are still unverified. The risk engine must not infer those values from the CFD/spot labels.
 
