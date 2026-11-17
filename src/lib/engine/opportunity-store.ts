@@ -28,6 +28,7 @@ type OpportunityRow = Prisma.OpportunityGetPayload<{
 
 export interface PersistedOpportunityResult {
   created: boolean;
+  opportunityId: string;
   snapshot: OpportunitySnapshot;
   version: number;
 }
@@ -143,7 +144,12 @@ export async function createPersistentOpportunity(
       return { id: row.id, version: row.version, snapshot: toSnapshot(stored) };
     });
 
-    return { created: true, version: created.version, snapshot: created.snapshot };
+    return {
+      created: true,
+      opportunityId: created.id,
+      version: created.version,
+      snapshot: created.snapshot,
+    };
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -156,6 +162,7 @@ export async function createPersistentOpportunity(
       if (existing) {
         return {
           created: false,
+          opportunityId: existing.id,
           version: existing.version,
           snapshot: toSnapshot(existing),
         };
@@ -173,6 +180,7 @@ export async function getPersistentOpportunity(
   if (!row) return null;
   return {
     created: false,
+    opportunityId: row.id,
     version: row.version,
     snapshot: toSnapshot(row),
   };
@@ -277,6 +285,7 @@ export async function applyPersistentOpportunityObservation(
     }
     return {
       created: false,
+      opportunityId: stored.id,
       version: stored.version,
       snapshot: toSnapshot(stored),
     };
