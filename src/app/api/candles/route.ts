@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
     if (!TIMEFRAMES.includes(tf)) return badRequest(`unknown timeframe ${tf}`);
 
     if (datasetId) {
-      const loaded = await loadMarketDataset(datasetId);
+      const allowReview = sp.get("allowReview") === "true";
+      const loaded = await loadMarketDataset(datasetId, { allowReview });
       if (loaded.manifest.instrument.id !== symbol) {
         return badRequest("datasetId does not belong to the requested symbol");
       }
