@@ -19,6 +19,7 @@ import {
 } from "lightweight-charts";
 import type { Bar } from "@/lib/engine/types";
 import type { PriorUtcDateLevels } from "@/lib/engine/market-structure";
+import type { DisplacementZone } from "@/lib/engine/displacement-zones";
 
 export interface ChartMarker {
   time: number; // ms epoch
@@ -66,6 +67,7 @@ export function MiniChart({
   bars,
   markers,
   priorUtcDateLevels,
+  displacementZones,
   height,
   decimals = 2,
   chartId,
@@ -73,6 +75,7 @@ export function MiniChart({
   bars: Bar[];
   markers?: ChartMarker[];
   priorUtcDateLevels?: PriorUtcDateLevels | null;
+  displacementZones?: DisplacementZone[];
   height?: number | string;
   decimals?: number;
   chartId?: string;
@@ -83,6 +86,7 @@ export function MiniChart({
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const markersRef = useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
   const priorDateLinesRef = useRef<IPriceLine[]>([]);
+  const displacementZoneLinesRef = useRef<IPriceLine[]>([]);
   const hasFitContentRef = useRef(false);
   const [ready, setReady] = useState(false);
 
@@ -159,6 +163,14 @@ export function MiniChart({
         }
       }
       priorDateLinesRef.current = [];
+      for (const line of displacementZoneLinesRef.current) {
+        try {
+          candle.removePriceLine(line);
+        } catch {
+          // Chart teardown must not be blocked by an already-removed line.
+        }
+      }
+      displacementZoneLinesRef.current = [];
       chart.remove();
       hasFitContentRef.current = false;
       chartRef.current = null;
@@ -244,6 +256,45 @@ export function MiniChart({
       priorDateLinesRef.current = [];
     };
   }, [priorUtcDateLevels, ready]);
+
+  useEffect(() => {
+    const candle = candleRef.current;
+    if (!candle || !ready) return;
+
+    for (const line of displacementZoneLinesRef.current) candle.removePriceLine(line);
+    displacementZoneLinesRef.current = [];
+
+    const lines: IPriceLine[] = [];
+    for (const zone of displacementZones ?? []) {
+      const isDemand = zone.direction === "DEMAND";
+      const color = isDemand ? "#4baf91" : "#d87979";
+      const status = zone.status === "TESTED" ? "TESTED" : "ACTIVE";
+      lines.push(
+        candle.createPriceLine({
+          price: zone.upper,
+          color,
+          lineWidth: 1,
+          lineStyle: 3,
+          axisLabelVisible: true,
+          title: zone.direction + " " + status + " TOP",
+        }),
+        candle.createPriceLine({
+          price: zone.lower,
+          color,
+          lineWidth: 1,
+          lineStyle: 3,
+          axisLabelVisible: true,
+          title: zone.direction + " " + status + " BASE",
+        })
+      );
+    }
+    displacementZoneLinesRef.current = lines;
+
+    return () => {
+      for (const line of displacementZoneLinesRef.current) candle.removePriceLine(line);
+      displacementZoneLinesRef.current = [];
+    };
+  }, [displacementZones, ready]);
 
   return (
     <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"} style={height ? { height } : undefined}>
