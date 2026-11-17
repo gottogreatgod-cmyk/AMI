@@ -41,6 +41,9 @@ jobs:
       - name: Generate Prisma client
         run: bun run db:generate
 
+      - name: Apply Prisma schema to isolated CI SQLite database
+        run: bun run db:push
+
       - name: Lint
         run: bun run lint
 
