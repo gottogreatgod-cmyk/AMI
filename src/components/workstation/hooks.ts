@@ -26,6 +26,7 @@ export function usePolling<T>(url: string | null, intervalMs: number, refreshKey
       setLoading(false);
       return;
     }
+    const requestUrl = url;
 
     setLoading(true);
 
@@ -41,7 +42,7 @@ export function usePolling<T>(url: string | null, intervalMs: number, refreshKey
       const timeout = setTimeout(() => controller.abort(), 15_000);
 
       try {
-        const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+        const response = await fetch(requestUrl, { cache: "no-store", signal: controller.signal });
         if (response.status === 401) {
           authExpired = true;
           if (alive) setError("Session expired — reload to sign in again.");
