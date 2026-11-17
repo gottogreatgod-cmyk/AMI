@@ -28,6 +28,7 @@ type OpportunityRow = Prisma.OpportunityGetPayload<{
 
 export interface PersistedOpportunityResult {
   created: boolean;
+  conflict: boolean;
   opportunityId: string;
   snapshot: OpportunitySnapshot;
   version: number;
@@ -93,12 +94,55 @@ async function findStoredOpportunity(
   });
 }
 
+function candidateIdentity(candidate: OpportunityCandidate): string {
+  // Server-generated creation/evidence observation timestamps can differ on a
+  // retried request. All actual setup economics and evidence content remain
+  // immutable under the same per-user idempotency key.
+  return JSON.stringify({
+    id: candidate.id,
+    symbol: candidate.symbol,
+    timeframe: candidate.timeframe,
+    strategyKey: candidate.strategyKey,
+    direction: candidate.direction,
+    triggerPrice: candidate.triggerPrice,
+    invalidationPrice: candidate.invalidationPrice,
+    nearDistance: candidate.nearDistance,
+    expiresAtTs: candidate.expiresAtTs,
+    datasetId: candidate.datasetId ?? null,
+    evidence: candidate.evidence.map((item) => ({
+      source: item.source,
+      code: item.code,
+      description: item.description,
+    })),
+  });
+}
+
+async function findByDedupeKey(userId: string, dedupeKey: string): Promise<OpportunityRow | null> {
+  return db.opportunity.findFirst({
+    where: { userId, dedupeKey },
+    include: { events: { orderBy: { sequence: "asc" } } },
+  });
+}
+
+function existingResult(row: OpportunityRow, candidate: OpportunityCandidate): PersistedOpportunityResult {
+  const storedCandidate = parseCandidate(row.candidateJson);
+  return {
+    created: false,
+    conflict: candidateIdentity(storedCandidate) !== candidateIdentity(candidate),
+    opportunityId: row.id,
+    version: row.version,
+    snapshot: toSnapshot(row),
+  };
+}
+
 export async function createPersistentOpportunity(
   userId: string,
   candidate: OpportunityCandidate
 ): Promise<PersistedOpportunityResult> {
   if (!userId.trim()) throw new Error("A signed-in user ID is required.");
   const initial = createOpportunitySnapshot(candidate);
+  const existing = await findByDedupeKey(userId, candidate.id);
+  if (existing) return existingResult(existing, initial.candidate);
 
   try {
     const created = await db.$transaction(async (tx) => {
@@ -146,6 +190,7 @@ export async function createPersistentOpportunity(
 
     return {
       created: true,
+      conflict: false,
       opportunityId: created.id,
       version: created.version,
       snapshot: created.snapshot,
@@ -155,18 +200,8 @@ export async function createPersistentOpportunity(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      const existing = await db.opportunity.findFirst({
-        where: { userId, dedupeKey: candidate.id },
-        include: { events: { orderBy: { sequence: "asc" } } },
-      });
-      if (existing) {
-        return {
-          created: false,
-          opportunityId: existing.id,
-          version: existing.version,
-          snapshot: toSnapshot(existing),
-        };
-      }
+      const existing = await findByDedupeKey(userId, candidate.id);
+      if (existing) return existingResult(existing, initial.candidate);
     }
     throw error;
   }
@@ -180,6 +215,7 @@ export async function getPersistentOpportunity(
   if (!row) return null;
   return {
     created: false,
+    conflict: false,
     opportunityId: row.id,
     version: row.version,
     snapshot: toSnapshot(row),
@@ -205,6 +241,7 @@ export async function listPersistentOpportunities(
   });
   return rows.map((row) => ({
     created: false,
+    conflict: false,
     opportunityId: row.id,
     version: row.version,
     snapshot: toSnapshot(row),
@@ -234,6 +271,7 @@ export async function applyPersistentOpportunityObservation(
     if (newEvents.length === 0) {
       return {
         created: false,
+        conflict: false,
         opportunityId: row.id,
         version: row.version,
         snapshot: current,
@@ -287,6 +325,7 @@ export async function applyPersistentOpportunityObservation(
     }
     return {
       created: false,
+      conflict: false,
       opportunityId: stored.id,
       version: stored.version,
       snapshot: toSnapshot(stored),
