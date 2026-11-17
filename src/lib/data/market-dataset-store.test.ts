@@ -140,6 +140,7 @@ describe("verified local market dataset store", () => {
       options.from,
       options.to,
       options.priceSide,
+      "meta" + fixture.manifest.instrument.metadataVersion,
       fixture.manifest.volume.units ?? "no-volume",
       fixture.manifest.provenance.rawSha256.slice(0, 8),
       fixture.manifest.provenance.normalizedSha256.slice(0, 12),
