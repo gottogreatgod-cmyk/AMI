@@ -101,6 +101,46 @@ describe("persistent opportunity store", () => {
     expect(events).toHaveLength(1);
   });
 
+  test("same idempotency key with different immutable setup terms is a conflict", async () => {
+    const userId = await createTestUser();
+    const first = await createPersistentOpportunity(userId, makeCandidate("setup-conflict"));
+    const changed = await createPersistentOpportunity(userId, {
+      ...makeCandidate("setup-conflict"),
+      triggerPrice: 2060,
+    });
+
+    expect(first.created).toBe(true);
+    expect(first.conflict).toBe(false);
+    expect(changed.created).toBe(false);
+    expect(changed.conflict).toBe(true);
+    expect(changed.opportunityId).toBe(first.opportunityId);
+    expect(changed.snapshot.candidate.triggerPrice).toBe(2050);
+  });
+
+  test("persists the last processed timestamp even when a newer bar creates no transition event", async () => {
+    const userId = await createTestUser();
+    const created = await createPersistentOpportunity(userId, makeCandidate("setup-watermark"));
+
+    const noTransition = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
+      bar: closedBar(10, 2045, 2045.5, 2044.5),
+      gates: readyGates,
+    });
+    expect(noTransition.snapshot.status).toBe("WATCH");
+    expect(noTransition.version).toBe(2);
+    expect(noTransition.snapshot.lastProcessedBarCloseTs).toBe(11 * STEP - 1);
+    expect(noTransition.snapshot.events).toHaveLength(1);
+
+    // A different OHLC payload with the same close timestamp must not be
+    // reconsidered as a trigger after the original WATCH evaluation.
+    const replay = await applyPersistentOpportunityObservation(userId, created.opportunityId, {
+      bar: closedBar(10, 2049, 2052, 2041),
+      gates: readyGates,
+    });
+    expect(replay.snapshot.status).toBe("WATCH");
+    expect(replay.version).toBe(2);
+    expect(replay.snapshot.events).toHaveLength(1);
+  });
+
   test("persists lifecycle transitions as separate append-only sequence rows", async () => {
     const userId = await createTestUser();
     const created = await createPersistentOpportunity(userId, makeCandidate("setup-transition"));
