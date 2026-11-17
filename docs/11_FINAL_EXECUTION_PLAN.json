@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #124 green on 17 Nov 2026: lint, strict typecheck, 45 Bun tests, importer/downloader/catalogue smoke tests and production build; full API/browser/security coverage pending",
+      "status": "GitHub Actions run #138 green on 17 Nov 2026: lint, strict typecheck, 51 Bun tests across 8 files, importer/downloader/catalogue smoke tests and production build; route/browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -238,7 +238,7 @@
     {
       "id": "FTC-300",
       "name": "Live multi-chart desk",
-      "status": "explicit local history chart source committed; PASS by default, REVIEW only through deliberate UI opt-in; live streaming, forming candles, overlays and reconnect continuity pending",
+      "status": "historical chart selection and optional causal closed-bar BOS/CHoCH structure overlay committed; live feed, forming candle finalization, supply/demand zones, VWAP and reconnect continuity pending",
       "dependsOn": [
         "FTC-210"
       ],
@@ -255,7 +255,7 @@
     {
       "id": "FTC-310",
       "name": "Market structure and supply/demand",
-      "status": "not_started",
+      "status": "confirmed swing and BOS/CHoCH overlays implemented with right-side confirmation, no retroactive marking, future-data invariance and chronological/deduplicated input tests; supply/demand zones, prior-session levels and VWAP where volume is valid pending",
       "dependsOn": [
         "FTC-010",
         "FTC-130"
@@ -467,7 +467,9 @@
       "Authenticated dataset catalogue and paginated verified-bar APIs",
       "Chart-panel selector for explicit PASS-labelled local historical revisions; exact dataset response identity is required before bars are displayed",
       "Chart desk defaults to PASS-labelled local revisions and exposes a deliberate REVIEW opt-in; REVIEW requests explicitly set allowReview=true and still pass full source/hash validation",
-      "Immutable local historical chart sources refetch only on manual refresh or a long safety interval; live provider charts keep their shorter polling cadence"
+      "Immutable local historical chart sources refetch only on manual refresh or a long safety interval; live provider charts keep their shorter polling cadence",
+      "Optional per-chart confirmed swing structure overlay: unique swing pivots only become available after right-side closed-bar confirmation; BOS/CHoCH markers appear on actual break candles and are never backdated",
+      "Structure engine sorts and deduplicates input bars to match chart candle normalization; fixtures cover confirmation delay, CHoCH direction changes, no future-data repaint, equal-pivot suppression and duplicate/out-of-order input"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -476,7 +478,8 @@
       "Contract point values, quantity increments, spread/commission/financing and session schedules remain unverified for the two new instruments",
       "No production real-time stream or guaranteed persistent WebSocket feed is enabled",
       "API route-level and browser automation, provider freshness/reconnect validation and security scanning remain pending",
-      "Walk-forward/locked holdout research, paper OMS and forward certification remain pending"
+      "Walk-forward/locked holdout research, paper OMS and forward certification remain pending",
+      "Structure overlays do not yet include supply/demand zones, prior-day/session levels or session-anchored VWAP"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -486,11 +489,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestCompletedRun": 124,
+      "latestCompletedRun": 138,
       "completedAt": "2026-11-17",
       "result": "success",
-      "tests": 45,
-      "testFiles": 7,
+      "tests": 51,
+      "testFiles": 8,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
