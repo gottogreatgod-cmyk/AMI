@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #178 green on 17 Nov 2026: lint, strict typecheck, 57 Bun tests across 9 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #218 green on 17 Nov 2026: lint, strict typecheck, 70 Bun tests across 10 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -255,7 +255,7 @@
     {
       "id": "FTC-310",
       "name": "Market structure and supply/demand",
-      "status": "confirmed unique swing/BOS/CHoCH overlay implemented with no future-data repaint tests; supply/demand zones, prior-session levels and valid-volume VWAP pending",
+      "status": "confirmed swing/BOS/CHoCH overlay and observed prior available UTC-date high/low overlay implemented with causality/no-future-data fixtures; exchange-session levels, supply/demand zones and volume-qualified session VWAP pending",
       "dependsOn": [
         "FTC-010",
         "FTC-130"
@@ -474,7 +474,8 @@
       "Authenticated monitor snapshot API and chart-desk state/spread display; monitor status remains separate from the chart's historical/provider candle source",
       "Monitor normalization separates closed/forming bars, retains bid/ask OHLC separately, computes top-of-book spread from paired ticks, and classifies NO_TICK/FRESH/STALE",
       "Operation capability policy distinguishes PASS/REVIEW chart and side-specific signal research from backtesting; single-side bid/ask history cannot unlock strategy backtests, paper execution or live routing",
-      "Chart data source is persisted per panel by exact immutable dataset ID; changing back to provider feed clears the old local chart data immediately"
+      "Chart data source is persisted per panel by exact immutable dataset ID; changing back to provider feed clears the old local chart data immediately",
+      "Observed prior available UTC calendar-date high/low overlay: uses only observed closed bars, skips missing dates without synthetic fill, labels provenance date and observed bar count, and does not claim exchange-session semantics"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -484,7 +485,7 @@
       "No production real-time stream or guaranteed persistent WebSocket feed is enabled",
       "API route-level and browser automation, provider freshness/reconnect validation and security scanning remain pending",
       "Walk-forward/locked holdout research, paper OMS and forward certification remain pending",
-      "Structure overlays do not yet include supply/demand zones, prior-day/session levels or session-anchored VWAP",
+      "Structure overlays do not yet include supply/demand zones, verified broker/exchange session levels or session-anchored VWAP",
       "Experimental monitor has not yet been run against the provider in a local environment; availability, current-rate cadence and provider terms remain unverified",
       "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay"
     ],
@@ -496,11 +497,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 178,
+      "latestFullyGreenRun": 218,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 57,
-      "testFiles": 9,
+      "tests": 70,
+      "testFiles": 10,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
