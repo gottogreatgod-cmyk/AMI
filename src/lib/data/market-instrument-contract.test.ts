@@ -36,9 +36,15 @@ describe("canonical market instrument metadata", () => {
     expect(nqDated.providerInstrument).toBe("NQZ6");
     expect(nqDated.quoteSide).toBe("TRADE");
     expect(nqDated.volumeSemantics).toBe("EXCHANGE_TRADED_VOLUME");
-    expect(nqDated.contract.status).toBe("UNVERIFIED");
-    expect(nqDated.contract.pointValue).toBeNull();
-    expect(hasVerifiedContractEconomics(nqDated)).toBe(false);
+    expect(nqDated.contract.status).toBe("VERIFIED");
+    expect(nqDated.contract.tickSize).toBe(0.25);
+    expect(nqDated.contract.quantityIncrement).toBe(1);
+    expect(nqDated.contract.pointValue).toBe(20);
+    expect(nqDated.contract.notionalMultiplier).toBe(20);
+    expect(nqDated.contract.initialMarginRate).toBeNull();
+    expect(nqDated.contract.initialMarginPerUnit).toBeNull();
+    expect(nqDated.costs.status).toBe("UNVERIFIED");
+    expect(hasVerifiedContractEconomics(nqDated)).toBe(true);
     expect(isDataClass(nqDated, "BROKER_CFD")).toBe(false);
     expect(nqDated.id).not.toBe(MARKET_INSTRUMENTS["NAS100-DUKA"].id);
     expect(nqDated.id).not.toBe(MARKET_INSTRUMENTS["NQ=F"].id);
