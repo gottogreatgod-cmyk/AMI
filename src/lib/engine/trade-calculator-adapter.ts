@@ -1,16 +1,60 @@
 import { getMarketInstrumentMetadata, hasVerifiedContractEconomics } from "@/lib/data/market-instrument-contract";
 import type { InstrumentRiskEconomics } from "./trade-calculator";
 
+export interface VerifiedAccountCurrencyConversion {
+  status: "VERIFIED" | "UNVERIFIED";
+  accountCurrency: string;
+  pnlCurrency: string;
+  quoteCurrency: string;
+  pnlToAccountRate: number | null;
+  quoteToAccountRate: number | null;
+}
+
 /**
  * Adapts canonical registry facts into the calculator contract. This function
- * never fills missing economics with defaults or derives multipliers from
- * asset class, symbol naming or another instrument.
+ * never fills missing contract, cost, margin or FX facts with defaults.
+ *
+ * If both settlement currencies already equal the account currency, the
+ * conversion is exactly 1. Otherwise the caller must supply independently
+ * verified conversion rates whose currency pair labels match this request.
  */
 export function getInstrumentRiskEconomics(
-  instrumentId: string
+  instrumentId: string,
+  accountCurrency: string,
+  conversion?: VerifiedAccountCurrencyConversion
 ): InstrumentRiskEconomics | null {
   const instrument = getMarketInstrumentMetadata(instrumentId);
   if (!instrument) return null;
+
+  const normalizedAccountCurrency = accountCurrency.trim().toUpperCase();
+  const sameCurrency =
+    normalizedAccountCurrency === instrument.pnlCurrency &&
+    normalizedAccountCurrency === instrument.quoteCurrency;
+
+  const conversionMatches =
+    conversion?.accountCurrency.trim().toUpperCase() === normalizedAccountCurrency &&
+    conversion?.pnlCurrency === instrument.pnlCurrency &&
+    conversion?.quoteCurrency === instrument.quoteCurrency;
+
+  const currencyConversion = sameCurrency
+    ? {
+        status: "VERIFIED" as const,
+        accountCurrency: normalizedAccountCurrency,
+        pnlCurrency: instrument.pnlCurrency,
+        quoteCurrency: instrument.quoteCurrency,
+        pnlToAccountRate: 1,
+        quoteToAccountRate: 1,
+      }
+    : {
+        status: conversion?.status === "VERIFIED" && conversionMatches
+          ? "VERIFIED" as const
+          : "UNVERIFIED" as const,
+        accountCurrency: normalizedAccountCurrency,
+        pnlCurrency: instrument.pnlCurrency,
+        quoteCurrency: instrument.quoteCurrency,
+        pnlToAccountRate: conversionMatches ? conversion?.pnlToAccountRate ?? null : null,
+        quoteToAccountRate: conversionMatches ? conversion?.quoteToAccountRate ?? null : null,
+      };
 
   const marginRate = instrument.contract.initialMarginRate;
   const marginPerUnit = instrument.contract.initialMarginPerUnit;
@@ -23,6 +67,7 @@ export function getInstrumentRiskEconomics(
   return {
     instrumentId: instrument.id,
     dataClass: instrument.dataClass,
+    currencyConversion,
     contract: {
       status: hasVerifiedContractEconomics(instrument) ? "VERIFIED" : "UNVERIFIED",
       tickSize: instrument.contract.tickSize,
@@ -33,8 +78,8 @@ export function getInstrumentRiskEconomics(
     costs: {
       status: instrument.costs.status === "VERIFIED" ? "VERIFIED" : "UNVERIFIED",
       commissionBpsPerSide: instrument.costs.feeBpsPerSide,
-      // Spread is expected to be represented in the executable bid/ask quotes
-      // supplied for entry, stop and target; this is not inferred from a default.
+      // Spread is represented by the executable bid/ask quotes supplied
+      // for entry, stop and target; do not add it again as a percentage cost.
       slippageBpsPerSide: instrument.costs.slippageBpsPerSide,
     },
     margin: {
