@@ -96,7 +96,7 @@
     {
       "id": "FTC-010",
       "name": "CI and test harness",
-      "status": "GitHub Actions run #276 green on 17 Nov 2026: lint, strict typecheck, 101 Bun tests across 14 files, four offline CLI smoke checks and production build; API/browser/accessibility/security coverage pending",
+      "status": "GitHub Actions run #321 green on 17 Nov 2026: Prisma schema apply, lint, strict typecheck, 114 Bun tests across 15 files, four offline CLI smoke checks and production build; route/browser/accessibility/security coverage pending",
       "dependsOn": [
         "FTC-000"
       ],
@@ -290,7 +290,7 @@
     {
       "id": "FTC-410",
       "name": "Trade calculator and risk policy",
-      "status": "Generic contract-verified risk calculator, canonical metadata v3 adapter and authenticated POST /api/risk/calculate implemented; requires verified contract, costs and margin plus explicit bid/ask quote pairs; current XAUUSD-DUKA/NAS100-DUKA correctly return NO_TRADE; API/UI opportunity integration and independently verified economics pending",
+      "status": "Generic contract-verified risk calculator, canonical metadata adapter and authenticated POST /api/risk/calculate implemented. Requires explicit account currency, P&L/quote currency and verified pair-labelled FX rates for cross-currency sizing; current XAUUSD-DUKA/NAS100-DUKA remain NO_TRADE due to unverified contract/cost/margin data. Route tests, trusted FX source and user account-currency integration pending",
       "dependsOn": [
         "FTC-100",
         "FTC-400"
@@ -480,7 +480,8 @@
       "Pure opportunity lifecycle state machine with required timestamped evidence, WATCH/NEAR_TRIGGER/TRIGGERED/INVALIDATED/EXPIRED/SUPPRESSED states, append-only transition events, stale/data/HTF suppression and resume, invalidation-first same-bar safety priority, and duplicate/out-of-order observation idempotency",
       "Generic contract-verified trade calculator: requires verified contract tick/quantity/point/notional economics, verified fees/slippage, verified initial-margin rate or per-unit requirement, and side-aware executable entry/stop/target prices; calculates stop risk, two-leg costs, net reward/risk, leverage/margin caps and explicit NO_TRADE reasons",
       "Canonical instrument metadata v3 now carries explicit notional multiplier and initial margin rate/per-unit fields; all existing instruments remain null/unverified unless an authoritative specification is added",
-      "Authenticated POST /api/risk/calculate adapts server-owned canonical metadata and requires separate bid/ask quote pairs for entry, stop and target; rejects crossed quotes, unverified contract/cost/margin, invalid ticks, inadequate net R:R and quantities outside risk/margin caps"
+      "Authenticated POST /api/risk/calculate adapts server-owned canonical metadata and requires separate bid/ask quote pairs for entry, stop and target; rejects crossed quotes, unverified contract/cost/margin, invalid ticks, inadequate net R:R and quantities outside risk/margin caps",
+      "Risk calculator currency safety: canonical registry explicitly declares each instrument's P&L settlement currency; adapter requires account currency and only accepts verified FX rates labelled for the exact P&L/quote/account currency triplet; same-currency rates are exactly 1; API requires account currency and does not accept a client-supplied verified-FX flag"
     ],
     "notYetCompleted": [
       "No real Dukascopy market archive has yet been downloaded, imported or session-calendar audited",
@@ -495,7 +496,8 @@
       "Monitor data is not yet merged into chart candle series and there is no persistent WebSocket stream, session-aware stale detection, durable event sequence or reconnect/backfill replay",
       "Opportunity candidates are not yet generated automatically from live signals/zones, persisted in the database, deduplicated across workers, surfaced in the UI/API or connected to a paper OMS",
       "Trade calculator is not yet surfaced in UI/API or attached to opportunities; no verified XAUUSD-DUKA or NAS100-DUKA contract, fee, slippage or initial-margin specification is supplied, so those instruments remain NO_TRADE",
-      "No current primary instrument has verified contract point value, notional multiplier, commission/slippage and initial margin; therefore XAUUSD-DUKA and NAS100-DUKA remain NO_TRADE through the new sizing API"
+      "No current primary instrument has verified contract point value, notional multiplier, commission/slippage and initial margin; therefore XAUUSD-DUKA and NAS100-DUKA remain NO_TRADE through the new sizing API",
+      "A trusted, timestamped FX conversion provider and persisted user account currency are not yet integrated; cross-currency risk calculations therefore remain NO_TRADE unless a trusted conversion is supplied internally"
     ],
     "operatingSafety": {
       "liveOrdersEnabled": false,
@@ -505,11 +507,11 @@
       "syntheticGapFillingEnabled": false
     },
     "validation": {
-      "latestFullyGreenRun": 276,
+      "latestFullyGreenRun": 321,
       "latestMonitorRun": 161,
       "latestMonitorRunConclusion": "cancelled during cleanup after lint/typecheck/tests/three CLI smoke checks/monitor CLI smoke check/production build had completed successfully",
-      "tests": 101,
-      "testFiles": 14,
+      "tests": 114,
+      "testFiles": 15,
       "lint": true,
       "strictTypecheck": true,
       "productionBuild": true,
