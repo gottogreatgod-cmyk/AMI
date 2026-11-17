@@ -25,7 +25,7 @@ describe("canonical market instrument metadata", () => {
     expect(gold.dataClass).toBe("OTC_SPOT_METAL");
     expect(gold.quoteSide).toBe("BID_ASK");
     expect(gold.analysisPriceSide).toBe("MID");
-    expect(gold.volumeSemantics).toBe("TICK_COUNT");
+    expect(gold.volumeSemantics).toBe("PROVIDER_REPORTED");
     expect(hasVerifiedContractEconomics(gold)).toBe(false);
   });
 
