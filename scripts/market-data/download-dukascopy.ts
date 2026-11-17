@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import {
   buildDukascopyDownloadArgs,
   getDukascopyProviderInstrument,
+  type DukascopyDownloadCommandOptions,
 } from "../../src/lib/data/dukascopy-downloader";
 import {
   DUKASCOPY_TIMEFRAMES,
@@ -108,7 +109,7 @@ async function main(): Promise<void> {
   }
 
   const args = parseArgs(rawArgs);
-  const instrumentId = required(args, "instrument");
+  const instrumentId = required(args, "instrument") as "XAUUSD-DUKA" | "NAS100-DUKA";
   if (instrumentId !== "XAUUSD-DUKA" && instrumentId !== "NAS100-DUKA") {
     throw new Error("instrument must be XAUUSD-DUKA or NAS100-DUKA.");
   }
@@ -147,7 +148,7 @@ async function main(): Promise<void> {
   await mkdir(outputDirectory, { recursive: true });
   if (args["no-cache"] !== true) await mkdir(cacheDirectory, { recursive: true });
 
-  const settings = {
+  const settings: Omit<DukascopyDownloadCommandOptions, "priceSide" | "fileName"> = {
     instrumentId,
     timeframe,
     from,
