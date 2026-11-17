@@ -83,18 +83,18 @@ describe("verified contract trade calculator", () => {
   });
 
   test("caps quantity by both leverage and available margin", () => {
-    const result = calculateTradeSize(verifiedSyntheticEconomics, {
-      ...defaultInput,
-      riskPercent: 5,
-      availableMargin: 2_000,
-      maxLeverage: 1,
-    }, {
+    const result = calculateTradeSize({
       ...verifiedSyntheticEconomics,
       margin: {
         status: "VERIFIED",
         initialMarginRate: 1,
         initialMarginPerUnit: null,
       },
+    }, {
+      ...defaultInput,
+      riskPercent: 5,
+      availableMargin: 2_000,
+      maxLeverage: 1,
     });
     expect(result.status).toBe("SIZED");
     if (result.status === "SIZED") {
