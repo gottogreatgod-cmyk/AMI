@@ -194,6 +194,7 @@ model ReplayEvent {
   replayRunId             String
   replayRun               ReplayRun  @relation(fields: [replayRunId], references: [id], onDelete: Cascade)
   eventIdentity           String
+  sequence                Int
   setupId                 String
   eventKey                String
   type                    String
@@ -210,6 +211,8 @@ model ReplayEvent {
   createdAt               DateTime   @default(now())
 
   @@unique([replayRunId, eventIdentity])
+  @@unique([replayRunId, sequence])
+  @@index([replayRunId, sequence])
   @@index([replayRunId, discoveredAtTs])
   @@index([setupId, occurredAtTs])
 }
