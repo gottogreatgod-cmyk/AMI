@@ -68,8 +68,8 @@ async function fetchJson(options) {
 async function pollOnce() {
   const attemptStartedAt = Date.now();
   const ticksRaw = await fetchJson({ timeframe: "tick", last: 1 });
-  const bidRaw = await fetchJson({ timeframe, priceType: "bid", volumes: true, last: 8 });
-  const askRaw = await fetchJson({ timeframe, priceType: "ask", volumes: true, last: 8 });
+  const bidRaw = await fetchJson({ timeframe, priceType: "bid", volumes: true, last: 64 });
+  const askRaw = await fetchJson({ timeframe, priceType: "ask", volumes: true, last: 64 });
 
   const fetchedAt = Date.now();
   const tick = helpers.normalizeMonitorTick(ticksRaw, fetchedAt);
