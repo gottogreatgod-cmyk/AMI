@@ -19,15 +19,16 @@ Historical replay and live monitoring are being built around the same determinis
 | Workstation | Multi-chart 1/2/4 layouts, public provider REST sources, local immutable datasets |
 | Historical datasets | Dukascopy XAUUSD and NAS100 CFD import; separate BID/ASK revisions; importer v2 gap policy |
 | M1 chart | Select exact local M1 revision; matching-side recent monitor candles can extend the chart only while feed health is FRESH |
-| Monitor | Two instrument pollers, independent writer/tick freshness checks, heartbeat, bounded restart policy |
+| Monitor | Two instrument pollers, independent writer/tick freshness checks, heartbeat, bounded restart policy, plus four side-specific live detector workers |
 | Replay engine | One closed bar at a time, deterministic lifecycle events, warmup context, stable source/detector provenance |
 | First detector | Versioned structure-break/retest research heuristic (BOS/CHoCH, FORMING, ARMED, TRIGGERED, INVALIDATED, EXPIRED) |
 | Persistence | User-scoped replay runs and immutable ordered events; same-run idempotency and changed-output conflict detection |
 | Day Review | Select exact M1 dataset and UTC day; render chart markers and setup evidence/timeline |
+| Live opportunities | Persisted detector cursors per instrument/side, active setup/invalidation state, separate LIVE_BOOTSTRAP and LIVE_MONITOR event origins, event timeline API and UI |
 | Risk | Calculator infrastructure exists; XAUUSD-DUKA/NAS100-DUKA remain fail-closed until actual venue economics are verified |
 | Execution | Broker order routing, fills and positions are disabled |
 
-**Important status boundary:** this is code implementation, not certification of real market data. Real BID/ASK archives still need to be downloaded and inspected locally. Dukascopy's current-rate integration is experimental polling, not WebSocket streaming. The automatic live opportunity worker and browser E2E acceptance are still open stages. Do not interpret historical replay events as alerts that actually occurred live, or a trigger as a fill.
+**Important status boundary:** the local app, historical replay, and first automatic live closed-bar worker are implemented in code, but not certified against a real local import or a complete trading session. Real BID/ASK archives still need to be downloaded and inspected locally. Dukascopy's current-rate integration is experimental polling, not WebSocket streaming. Dataset-backed recovery after a longer outage and browser E2E acceptance remain open. Do not interpret historical replay events as alerts that actually occurred live, or a trigger as a fill.
 
 ## Local setup
 
@@ -52,7 +53,7 @@ Start the complete local observation environment:
 bun run local:station -- start
 ```
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The runner synchronizes the local Prisma schema without the destructive `--accept-data-loss` flag, starts Next.js bound to loopback, and starts the two experimental M1 Dukascopy pollers.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The runner synchronizes the local Prisma schema without the destructive `--accept-data-loss` flag, starts Next.js bound to loopback, starts two experimental M1 Dukascopy pollers, and starts four closed-bar opportunity workers (BID/ASK for each instrument).
 
 In another terminal:
 
@@ -78,6 +79,7 @@ Data is stored below `data/market-data/`, which is ignored by Git. See [Market D
 ## Use the workstation
 
 - **DESK:** select the exact local dataset revision in a chart slot. For the live polling tail, the chosen M1 history side must match the monitor side (BID→BID or ASK→ASK). A stale or unavailable monitor never replaces the verified history.
+- **DAY REVIEW:** the top panel shows current forward live setup state and recent lifecycle events. `LIVE_MONITOR` means the worker processed a new closed M1 bar after its watermark; `LIVE_BOOTSTRAP` is reconstructed initial context and was not delivered as an alert at that historical time.
 - **DAY REVIEW:** choose the M1 revision and a UTC calendar day, set the warmup count, and run the retrospective detector. The chart shows event markers; the timeline distinguishes warmup context from events discovered inside the selected day.
 - **LAB / ANALYST:** existing research and analysis areas remain available, subject to their current data-use policies.
 
