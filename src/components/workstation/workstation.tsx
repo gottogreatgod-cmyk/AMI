@@ -8,13 +8,14 @@ import { RightSidebar } from "./right-sidebar";
 import { BottomDock } from "./bottom-dock";
 import { LabPanel } from "./lab-panel";
 import { AnalystPanel } from "./analyst-panel";
+import { DayReviewPanel } from "./day-review-panel";
 import { usePolling } from "./hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { CandlestickChart, FlaskConical, Radio, List } from "lucide-react";
+import { CandlestickChart, FlaskConical, Radio, List, History } from "lucide-react";
 
-export type WorkstationTab = "desk" | "lab" | "analyst";
+export type WorkstationTab = "desk" | "review" | "lab" | "analyst";
 
 interface MarketsResponse {
   markets: MarketRow[];
@@ -97,6 +98,7 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
 
   const tabs: Array<{ id: WorkstationTab; label: string; icon: React.ReactNode }> = [
     { id: "desk", label: "DESK", icon: <CandlestickChart className="w-3.5 h-3.5" /> },
+    { id: "review", label: "DAY REVIEW", icon: <History className="w-3.5 h-3.5" /> },
     { id: "lab", label: "LAB", icon: <FlaskConical className="w-3.5 h-3.5" /> },
     { id: "analyst", label: "ANALYST", icon: <Radio className="w-3.5 h-3.5" /> },
   ];
@@ -155,7 +157,7 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
             FOCUS · {focusSymbol} {focused?.price != null ? focused.price.toFixed(Math.min(focused.decimals, 2)) : ""}
           </span>
           <span className="chip hidden md:inline-block">
-            {marketRows.length} MARKETS · 7 TIMEFRAMES
+            {marketRows.length} MARKETS · 8 TIMEFRAMES
           </span>
           <span className="chip lg:hidden">{tab.toUpperCase()}</span>
         </div>
@@ -175,7 +177,8 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
           {tab === "desk" && (
             <DeskPanel slots={slots} onSlotsChange={setSlots} symbols={symbolOptions} focusSymbol={focusSymbol} onFocus={onFocus} refreshKey={refreshBust} />
           )}
-          {tab === "lab" && <LabPanel selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} />}
+          {tab === "review" && <DayReviewPanel />}
+          {tab === "lab" && <LabPanel selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} />
           {tab === "analyst" && <AnalystPanel focusSymbol={focusSymbol} />}
         </div>
         <div className="hidden xl:flex min-h-0">
@@ -195,10 +198,10 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
       {/* sticky footer */}
       <footer className="mt-auto shrink-0 h-[26px] flex items-center justify-between px-3 rounded-lg border border-[#1f303d] bg-[#0b131c] text-[9px] tracking-[0.08em] text-[#728798]">
         <span>
-          AMI UNIFIED QUANT WORKSTATION · SIMULATION RESEARCH ONLY · NO LIVE ORDERS · NO BROKER CONNECTION
+          AMI MARKET OBSERVATION + HISTORICAL RESEARCH · NO BROKER ORDER ROUTING
         </span>
         <span className="hidden sm:inline">
-          DATA: BINANCE SPOT · YAHOO (CME/COMEX CONTINUOUS, FX) · FOREXFACTORY CALENDAR
+          DATA: PUBLIC REST POLLING · LOCAL DUKASCOPY HISTORY / EXPERIMENTAL POLLING
         </span>
       </footer>
     </div>
