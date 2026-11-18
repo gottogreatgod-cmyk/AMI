@@ -439,27 +439,29 @@ Use task IDs in commits, PRs and test reports so separate agents can continue th
 
 | ID | Work package | Depends on | Status |
 |---|---|---|---|
-| FTC-000 | Existing P0 chart/refresh/HTF repair | — | Draft PR #1; validation still required |
-| FTC-010 | CI workflow + typecheck + lint + build gates | FTC-000 | Not started |
-| FTC-020 | Engine unit test harness and invariant fixtures | FTC-010 | Not started |
-| FTC-030 | Data normalization/resampling tests | FTC-010 | Not started |
-| FTC-040 | API/integration/browser test scaffolding | FTC-010 | Not started |
-| FTC-100 | Canonical instrument metadata v2 | FTC-020 | Not started |
-| FTC-110 | Dukascopy XAUUSD history importer | FTC-010, FTC-100 | Not started |
-| FTC-120 | Dukascopy USATECH history importer | FTC-010, FTC-100 | Not started |
-| FTC-130 | Dataset manifest/hash/quality CLI | FTC-110, FTC-120 | Not started |
-| FTC-140 | NQ free sample importer + separate data class | FTC-100 | Not started |
-| FTC-200 | Dukascopy realtime feasibility adapter | FTC-110, FTC-120 | Not started |
-| FTC-210 | Market freshness/reconnect/backfill service | FTC-200 | Not started |
-| FTC-300 | Live chart/forming candle adapter | FTC-210 | Not started |
-| FTC-310 | Market structure and supply/demand engine | FTC-020, FTC-130 | Not started |
-| FTC-400 | Candidate lifecycle and alert deduplication | FTC-210, FTC-310 | Not started |
-| FTC-410 | Trade-plan/risk calculator | FTC-100, FTC-400 | Not started |
-| FTC-500 | Reproducible experiments and dataset pinning | FTC-130 | Not started |
+| FTC-000 | Existing P0 chart/refresh/HTF repair | — | Implemented on PR #1; CI run #406 green; browser sign-off BLOCKED |
+| FTC-010 | CI workflow + typecheck + lint + build gates | FTC-000 | Implemented; CI run #406 green |
+| FTC-020 | Engine unit test harness and invariant fixtures | FTC-010 | Implemented baseline; expand strategy/fill edge-case coverage |
+| FTC-030 | Data normalization/resampling tests | FTC-010 | Implemented baseline; real-session and provider fixture expansion pending |
+| FTC-040 | API/integration/browser test scaffolding | FTC-010 | Partial: selected route tests exist; browser, accessibility and broad API integration pending |
+| FTC-100 | Canonical instrument metadata v2 | FTC-020 | Metadata v3 adapter implemented; real contract/session economics pending |
+| FTC-110 | Dukascopy XAUUSD history importer | FTC-010, FTC-100 | Downloader/importer implemented; real import and coverage audit pending |
+| FTC-120 | Dukascopy USATECH history importer | FTC-010, FTC-100 | Downloader/importer implemented; real import and coverage audit pending |
+| FTC-130 | Dataset manifest/hash/quality CLI | FTC-110, FTC-120 | Implemented and unit-tested; real-data verification pending |
+| FTC-140 | NQ free sample importer + separate data class | FTC-100 | Importer and offline tests implemented; actual ZIP/Parquet import and independent volume CSV reconciliation pending |
+| FTC-150 | Real historical-data certification and resumable import audit | FTC-110, FTC-120, FTC-130 | Not started; requires local/provider downloads |
+| FTC-200 | Dukascopy realtime feasibility adapter | FTC-110, FTC-120 | Experimental polling worker implemented; real provider run/access/cadence/terms not validated |
+| FTC-210 | Market freshness/reconnect/backfill service | FTC-200 | Partial: snapshot freshness and stale/error reporting exist; session policy, supervisor, reconnect/backfill and duplicate/out-of-order tests pending |
+| FTC-300 | Live chart/forming candle adapter | FTC-210 | Partial: local historical chart selection exists; monitor ticks are not chart data and incremental feed adapter is pending |
+| FTC-310 | Market structure and supply/demand engine | FTC-020, FTC-130 | Initial causal BOS/CHoCH, prior UTC-date levels and displacement zones implemented; verified exchange-session levels/VWAP pending |
+| FTC-320 | Browser, accessibility and visual regression suite | FTC-040 | Not started; Playwright dependency/configuration and authenticated deterministic fixtures required |
+| FTC-400 | Candidate lifecycle and alert deduplication | FTC-210, FTC-310 | Reducer, Prisma persistence and authenticated manual-only API implemented; automatic sourcing/worker/notifications pending |
+| FTC-410 | Trade-plan/risk calculator | FTC-100, FTC-400 | Calculator, metadata adapter and authenticated route implemented; real costs/margin/FX and UI integration pending |
+| FTC-500 | Reproducible experiments and dataset pinning | FTC-130 | Not started; Run provenance schema and runner integration pending |
 | FTC-510 | Walk-forward/holdout/multiple-trial validation | FTC-500 | Not started |
-| FTC-600 | Persistent paper order/position ledger | FTC-410, FTC-510 | Not started |
+| FTC-600 | Persistent paper order/position ledger | FTC-410, FTC-510 | Not started; no paper OMS or ledger exists |
 | FTC-700 | Security/operations/backup/release certification | All above | Not started |
-
+ 
 The table is the status source of truth. Update it only when the artifact is committed and its acceptance tests pass. Do not mark a task done because code exists.
 
 ---
