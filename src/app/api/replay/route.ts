@@ -34,7 +34,7 @@ const replayBodySchema = z.object({
     rightBars: z.number().int().min(1).max(20).default(3),
     maxBarsAfterBreak: z.number().int().min(1).max(500).default(12),
     maxBarsAfterRetest: z.number().int().min(1).max(500).default(8),
-  }).strict().default({}),
+  }).strict().optional(),
 }).strict();
 
 function toPublicReplay(replay: Awaited<ReturnType<typeof getPersistentReplay>>) {
@@ -183,7 +183,12 @@ export async function POST(req: NextRequest) {
     }
 
     const bars = allBars.slice(startIndex, lastRequestedIndex + 1);
-    const detectorOptions = input.detector;
+    const detectorOptions = input.detector ?? {
+      leftBars: 3,
+      rightBars: 3,
+      maxBarsAfterBreak: 12,
+      maxBarsAfterRetest: 8,
+    };
     const detector = createStructureBreakRetestMachine(detectorOptions);
     const paramsHash = await sha256Hex(JSON.stringify({
       detectorId: detector.detectorId,
