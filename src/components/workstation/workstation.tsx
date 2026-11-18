@@ -178,7 +178,7 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
             <DeskPanel slots={slots} onSlotsChange={setSlots} symbols={symbolOptions} focusSymbol={focusSymbol} onFocus={onFocus} refreshKey={refreshBust} />
           )}
           {tab === "review" && <DayReviewPanel />}
-          {tab === "lab" && <LabPanel selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} />
+          {tab === "lab" && <LabPanel selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} />}
           {tab === "analyst" && <AnalystPanel focusSymbol={focusSymbol} />}
         </div>
         <div className="hidden xl:flex min-h-0">
