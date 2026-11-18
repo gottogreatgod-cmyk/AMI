@@ -1,7 +1,6 @@
 /// <reference types="bun-types" />
 
 import { describe, expect, test } from "bun:test";
-import type { Bar } from "../../types";
 import { createStructureBreakRetestMachine } from "../replay/detectors/structure-break-retest-detector";
 import {
   fingerprintForwardBar,
