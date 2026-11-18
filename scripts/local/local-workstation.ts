@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 type HostState = "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "ERROR";
 
@@ -181,6 +181,8 @@ async function start(): Promise<void> {
   process.env.NEXTAUTH_URL = "http://127.0.0.1:3000";
 
   await acquireLock();
+  const databasePath = resolve(ROOT, "prisma", dbUrl.slice("file:".length));
+  await mkdir(dirname(databasePath), { recursive: true });
   startedAt = Date.now();
   state = "STARTING";
   process.on("SIGINT", () => { void stop(); });
