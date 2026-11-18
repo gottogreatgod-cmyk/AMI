@@ -229,17 +229,47 @@ function ChartCard({
     liveData.timeframe === selectedDataset.timeframe
   );
   const visibleBars = useMemo(() => {
-    if (!liveFeedMatches || liveData?.state !== "FRESH" || liveData.bars.length === 0) {
+    if (
+      !liveFeedMatches ||
+      liveData?.state !== "FRESH" ||
+      liveData.bars.length === 0 ||
+      historicalBars.length === 0
+    ) return historicalBars;
+
+    const historyTail = historicalBars[historicalBars.length - 1];
+    const liveByTimestamp = new Map(liveData.bars.map((bar) => [bar.t, bar]));
+    const overlap = liveByTimestamp.get(historyTail.t);
+
+    // Never visually stitch two price histories without a same-time OHLC
+    // overlap. A different provider revision or quote-side mismatch remains
+    // visible as historical-only until explicitly reconciled.
+    if (
+      !overlap ||
+      overlap.o !== historyTail.o ||
+      overlap.h !== historyTail.h ||
+      overlap.l !== historyTail.l ||
+      overlap.c !== historyTail.c
+    ) return historicalBars;
+
+    const orderedLive = liveData.bars
+      .filter((bar) => bar.t >= historyTail.t)
+      .slice()
+      .sort((a, b) => a.t - b.t);
+    if (orderedLive.length === 0 || orderedLive[0].t !== historyTail.t) {
       return historicalBars;
     }
-    const byTimestamp = new Map<number, Bar>();
-    for (const bar of historicalBars) byTimestamp.set(bar.t, bar);
-    for (const bar of liveData.bars) {
-      byTimestamp.set(bar.t, { ...bar, v: bar.v ?? 0 });
+
+    for (let index = 1; index < orderedLive.length; index++) {
+      if (
+        orderedLive[index].t !== orderedLive[index - 1].t + 60_000 ||
+        orderedLive[index].t <= orderedLive[index - 1].ct
+      ) return historicalBars;
     }
-    return [...byTimestamp.values()]
-      .sort((a, b) => a.t - b.t)
-      .slice(-1200);
+
+    return [
+      ...historicalBars.slice(0, -1),
+      ...orderedLive.map((bar) => ({ ...bar, v: bar.v ?? 0 })),
+    ].slice(-1200);
   }, [historicalBars, liveData, liveFeedMatches]);
   const last = visibleBars[visibleBars.length - 1];
   const q = dataMatchesSelection ? data?.quality : undefined;
