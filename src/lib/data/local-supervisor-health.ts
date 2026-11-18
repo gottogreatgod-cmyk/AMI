@@ -34,6 +34,18 @@ export function classifyLocalSupervisorHealth(
   now = Date.now(),
   staleAfterMs = 15_000
 ): LocalSupervisorHealth {
+  if (input === null || input === undefined) {
+    return {
+      state: "NOT_STARTED",
+      pid: null,
+      heartbeatAt: null,
+      heartbeatAgeMs: null,
+      responsive: false,
+      workers: [],
+      error: null,
+    };
+  }
+
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return {
       state: "INVALID",
