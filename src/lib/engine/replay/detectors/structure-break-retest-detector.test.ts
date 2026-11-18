@@ -145,11 +145,11 @@ describe("causal structure-break/retest detector", () => {
     const bars = series([
       { high: 11, low: 9, close: 10 },
       { high: 15, low: 10, close: 14 },
-      { high: 12, low: 8, close: 11 },
-      { high: 13, low: 7, close: 8 },
-      { high: 12, low: 5, close: 6 },
-      { high: 9, low: 6, close: 7 },
-      { high: 8, low: 5, close: 5 },
+      { high: 12, low: 8, close: 10 },
+      { high: 13, low: 9, close: 9 },
+      { high: 12, low: 6, close: 7 },
+      { high: 9, low: 7, close: 7.5 },
+      { high: 7.4, low: 5, close: 5.5 },
     ]);
     const result = replay(bars);
     const shortEvents = result.events.filter((event) =>
@@ -171,10 +171,10 @@ describe("causal structure-break/retest detector", () => {
     const bars = series([
       { high: 11, low: 9, close: 10 },
       { high: 15, low: 10, close: 14 },
-      { high: 12, low: 8, close: 11 },
-      { high: 13, low: 7, close: 8 },
-      { high: 12, low: 5, close: 6 },
-      { high: 9, low: 6, close: 7 },
+      { high: 12, low: 8, close: 10 },
+      { high: 13, low: 9, close: 9 },
+      { high: 12, low: 6, close: 7 },
+      { high: 9, low: 7, close: 7.5 },
       { high: 10, low: 6, close: 9.5 },
     ]);
     const result = replay(bars);
