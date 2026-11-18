@@ -18,7 +18,8 @@
     "market-data:download": "bun run scripts/market-data/download-dukascopy.ts",
     "market-data:inspect": "bun run scripts/market-data/inspect-datasets.ts",
     "market-data:monitor": "bun run scripts/market-data/monitor-dukascopy.ts",
-    "market-data:nq-sample": "python3 scripts/market-data/nq_sample_import.py"
+    "market-data:nq-sample": "python3 scripts/market-data/nq_sample_import.py",
+    "market-data:supervisor": "bun run scripts/market-data/local-supervisor.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -100,4 +101,4 @@
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   }
-}
+}\n
