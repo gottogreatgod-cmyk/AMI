@@ -84,6 +84,8 @@ export interface ReplayEvent {
   discoveredAtTs: number;
   confirmationBarTs: number;
   confirmationBarCloseTs: number;
+  /** False when this event is warmup context preceding the requested review window. */
+  withinRequestedRange: boolean;
   reason: string;
   evidence: NonNullable<ReplayEventDraft["evidence"]>;
   origin: "HISTORICAL_REPLAY";
@@ -268,10 +270,10 @@ export function runHistoricalReplay<State>(
       inRequestedRange,
     });
     state = step.state;
+    if (inRequestedRange) evaluatedBars++;
 
-    if (!inRequestedRange) continue;
-    evaluatedBars++;
-
+    // Preserve setup history created during warmup. These events establish
+    // whether a setup is still active when the requested review window begins.
     for (const draft of step.events ?? []) {
       if (
         !draft.setupKey.trim() ||
@@ -339,6 +341,7 @@ export function runHistoricalReplay<State>(
         discoveredAtTs: bar.ct,
         confirmationBarTs: bar.t,
         confirmationBarCloseTs: bar.ct,
+        withinRequestedRange: inRequestedRange,
         reason: draft.reason,
         evidence,
         origin: "HISTORICAL_REPLAY",
