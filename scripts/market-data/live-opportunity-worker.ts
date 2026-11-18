@@ -21,6 +21,7 @@ import {
 } from "../../src/lib/engine/replay/detectors/structure-break-retest-detector";
 import {
   fingerprintForwardBar,
+  fingerprintForwardBar,
   processForwardClosedBars,
   type ForwardBar,
   type ForwardCursor,
@@ -332,6 +333,109 @@ async function ensureCursor(instrumentId: InstrumentId, priceSide: PriceSide) {
     },
     update: {},
   });
+}
+
+async function recoverFromVerifiedDataset(input: {
+  instrumentId: InstrumentId;
+  priceSide: PriceSide;
+  cursor: {
+    stateJson: string;
+    barsProcessedCount: number;
+    lastProcessedBarTs: number | null;
+    lastProcessedBarCloseTs: number | null;
+    lastProcessedBarFingerprint: string | null;
+  };
+  latestLiveBarTs: number;
+}) {
+  if (input.cursor.lastProcessedBarTs === null ||
+      input.cursor.lastProcessedBarFingerprint === null) return null;
+
+  const catalog = await listMarketDatasets();
+  const candidates = catalog.datasets
+    .filter((item) =>
+      item.instrumentId === input.instrumentId &&
+      item.timeframe === TIMEFRAME &&
+      item.priceSide === input.priceSide &&
+      item.qualityStatus === "PASS" &&
+      item.fromTs !== null &&
+      item.toTs !== null &&
+      item.fromTs <= input.cursor.lastProcessedBarTs! &&
+      item.toTs >= input.latestLiveBarTs
+    )
+    .sort((left, right) =>
+      (right.importedAt ?? "").localeCompare(left.importedAt ?? "")
+    );
+
+  for (const candidate of candidates) {
+    try {
+      const dataset = await loadMarketDataset(candidate.datasetId);
+      const manifest = dataset.manifest;
+      const policy = assessMarketDatasetUse(manifest, { allowReview: false });
+
+      if (
+        !policy.signalResearch.allowed ||
+        manifest.quality.qualityStatus !== "PASS" ||
+        manifest.instrument.id !== input.instrumentId ||
+        manifest.provenance.provider !== "Dukascopy" ||
+        manifest.provenance.providerInstrument !== INSTRUMENTS[input.instrumentId].providerInstrument ||
+        manifest.interval.timeframe !== TIMEFRAME ||
+        manifest.pricing.datasetPriceSide !== input.priceSide
+      ) continue;
+
+      const bars: ForwardBar[] = dataset.bars
+        .filter((bar) =>
+          bar.t >= input.cursor.lastProcessedBarTs! &&
+          bar.t <= input.latestLiveBarTs
+        )
+        .map((bar) => ({
+          t: bar.t,
+          ct: bar.ct,
+          o: bar.o,
+          h: bar.h,
+          l: bar.l,
+          c: bar.c,
+          v: bar.v ?? 0,
+          forming: false,
+        }));
+
+      const watermark = bars.find((bar) => bar.t === input.cursor.lastProcessedBarTs);
+      if (!watermark ||
+          fingerprintForwardBar(watermark) !== input.cursor.lastProcessedBarFingerprint) {
+        continue;
+      }
+
+      const recovered = processForwardClosedBars({
+        cursor: {
+          state: safeJsonState(input.cursor.stateJson),
+          barsProcessedCount: input.cursor.barsProcessedCount,
+          lastProcessedBarTs: input.cursor.lastProcessedBarTs,
+          lastProcessedBarCloseTs: input.cursor.lastProcessedBarCloseTs,
+          lastProcessedBarFingerprint: input.cursor.lastProcessedBarFingerprint,
+        },
+        bars,
+        machine: createStructureBreakRetestMachine(DETECTOR_OPTIONS),
+        instrumentId: input.instrumentId,
+        timeframe: TIMEFRAME,
+        timeframeMs: TIMEFRAME_MS,
+        processingOrigin: "LIVE_RECOVERY",
+      });
+
+      if (
+        (recovered.status === "PROCESSED" || recovered.status === "NO_NEW_BARS") &&
+        recovered.lastProcessedBarTs === input.latestLiveBarTs
+      ) {
+        return {
+          result: recovered,
+          revisionId: manifest.datasetId,
+          revisionHash: manifest.provenance.normalizedSha256,
+        };
+      }
+    } catch (error) {
+      process.stderr.write("[AMI] Recovery candidate " + candidate.datasetId +
+        " rejected: " + (error instanceof Error ? error.message : String(error)) + "\n");
+    }
+  }
+  return null;
 }
 
 async function updateCursorHealth(
