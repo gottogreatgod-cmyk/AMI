@@ -52,7 +52,7 @@ function baseRequest<State>(bars: Bar[], machine: ReplayMachine<State>) {
 }
 
 describe("deterministic historical replay engine", () => {
-  test("steps in chronological order with a strict past-and-current prefix", () => {
+  test("steps in chronological order with only the current closed bar exposed", () => {
     const bars = makeBars(8);
     const seen: number[] = [];
     const machine: ReplayMachine<number> = {
@@ -60,9 +60,7 @@ describe("deterministic historical replay engine", () => {
       detectorVersion: "1",
       createInitialState: () => 0,
       onClosedBar: (state, context) => {
-        expect(context.barsThroughDecision).toHaveLength(context.barIndex + 1);
-        expect(context.barsThroughDecision.at(-1)?.t).toBe(context.bar.t);
-        expect(context.barsThroughDecision.some((bar) => bar.t > context.bar.t)).toBe(false);
+        expect(context.barsProcessedBeforeDecision).toBe(context.barIndex);
         seen.push(context.bar.t);
         return { state: state + 1 };
       },
