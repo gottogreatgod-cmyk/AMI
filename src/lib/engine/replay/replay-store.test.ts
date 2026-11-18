@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { db } from "@/lib/db";
-import type { Bar } from "../../types";
+import type { Bar } from "../types";
 import {
   getPersistentReplay,
   listPersistentReplays,
