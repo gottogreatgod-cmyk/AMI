@@ -54,6 +54,26 @@ describe("forward live closed-bar processor", () => {
     expect(result.events.every((event) => event.origin === "LIVE_BOOTSTRAP")).toBe(true);
   });
 
+
+  test("bootstraps only from the latest contiguous suffix after an unclassified session gap", () => {
+    const firstSession = makeBars(5);
+    const secondSession = makeBars(3, firstSession[4].t + 2 * 60_000);
+    const result = processForwardClosedBars({
+      cursor: emptyCursor(),
+      bars: [...firstSession, ...secondSession],
+      machine: machine(),
+      instrumentId: "XAUUSD-DUKA",
+      timeframe: "m1",
+      timeframeMs: 60_000,
+    });
+
+    expect(result.status).toBe("BOOTSTRAPPED");
+    expect(result.processedBars).toBe(3);
+    expect(result.lastProcessedBarTs).toBe(secondSession[2].t);
+    expect(result.reason).toContain("latest contiguous suffix");
+    expect(result.events.every((event) => event.origin === "LIVE_BOOTSTRAP")).toBe(true);
+  });
+
   test("processes only new closed bars and never processes forming bars", () => {
     const bars = makeBars(8);
     const seeded = processForwardClosedBars({
