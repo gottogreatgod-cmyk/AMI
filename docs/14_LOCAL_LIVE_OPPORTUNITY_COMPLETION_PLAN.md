@@ -628,3 +628,69 @@ The system is ready for the requested local observation milestone only when all 
 - Live broker routing remains absent/disabled.
 
 **This is the target for the next release.** Research validation, paper OMS and final certification follow after the local observation loop works end to end.
+
+
+---
+
+## 11. Implementation evidence and current completion state (2026-11-18)
+
+This section maps the original phases to the actual code on branch `ami/local-live-opportunity-completion`. “Implemented” here means code, schema, tests and CI integration exist; it does **not** mean the user's local machine or a full provider session has been certified.
+
+| Original phase | Current implementation | Completion state | Remaining acceptance |
+|---|---|---|---|
+| 0 — Decisions and ground rules | `docs/16_MARKET_CONVENTIONS_AND_GOLDEN_DAYS.md`; XAUUSD-DUKA and NAS100-DUKA identities; UTC review range; quote-side rules; detector v1.0.0 vocabulary | Partially implemented | User's actual broker/execution venue, account currency, trading-day roll and approved setup vocabulary still require confirmation |
+| 1 — Verified market data | Dukascopy M1/M5/M15/M30/H1/H4/D1 importer; separate BID/ASK revisions; importer v2; hashes; strict missing-interval diagnostics | Code implemented | Actual BID/ASK archives for both instruments must be downloaded, quality reports inspected and anomalies classified |
+| 2 — Instrument spec registry | Existing risk calculator refuses unknown economics | Not complete for the target instruments | Exact venue-specific contract size, tick/point value, margin, fees, quantity steps, financing and currency conversion must be verified |
+| 3 — Chart workstation shell | Existing 1/2/4 workstation; local M1 selection; chart-range API; side-specific recent poll tail; separate tick/spread display; historical Day Review chart | Code implemented | Verify in a real browser and confirm quote-side/closed-bar behaviour against live snapshots |
+| 4 — Setup engine and day review | Pure causal replay engine; structure-break/retest detector v1.0.0; replay API; transactional persistent replay/event log; Day Review lifecycle timeline and retrospective markers | Code implemented | Curate real golden days and compare with hand-annotated expectations; add more detector types only after baseline validation |
+| 5 — Live developing view | Supervisor, two M1 pollers, four BID/ASK live opportunity workers, durable per-side cursor, closed-bar-only processing, active setup/invalidation UI, health timestamps, LIVE_MONITOR/LIVE_BOOTSTRAP/LIVE_RECOVERY origins, dataset-backed recovery attempt | Code implemented; provider certification pending | Run real sessions, verify the worker's recovery revision matches the poll snapshot exactly, test disconnects, stale feed and market reopen |
+| 6 — Risk engine | Existing pure sizing calculator and fail-closed behavior | Not certified for XAUUSD-DUKA/NAS100-DUKA | Add venue-specific specs and independently cross-check at least 10 cases per instrument |
+| 7 — Acceptance | CI and deterministic test fixtures | Not complete | Ten consecutive sessions per instrument with no unexplained replay/live/data discrepancies |
+
+### 11.1 Causal processing contract
+
+The historical and live paths invoke the same `createStructureBreakRetestMachine` detector implementation. Each call receives one newly closed M1 bar and the detector's persisted state. The detector cannot access a future bar or a wall-clock timer. The worker stores a bar fingerprint and will reject a correction to an already processed candle.
+
+The first forward-worker start reconstructs recent state and records any generated events as `LIVE_BOOTSTRAP`. Only bars processed after the persisted watermark are `LIVE_MONITOR`. If the monitor sample no longer contains a continuous sequence, the worker tries to load an exact, hash-verified, PASS Dukascopy dataset for the same instrument, timeframe and BID/ASK side. It accepts a recovery only when:
+- the dataset contains the exact previously processed watermark candle;
+- its OHLCV fingerprint matches the persisted candle fingerprint;
+- every subsequent M1 interval is present with no unclassified gap;
+- the recovered series reaches the latest closed candle in the current monitor snapshot.
+
+Events generated during such a catch-up are `LIVE_RECOVERY`, not `LIVE_MONITOR`. Each recovered event stores the dataset revision ID/hash. If no matching revision bridges the interval, the cursor remains `GAP_UNRECONCILED`; it does not skip missing bars.
+
+A deliberate `--reseed` creates a new cursor generation while retaining old events. It is an operator action that discards continuity of the prior detector state; it must not be used as a substitute for a verifiable backfill.
+
+### 11.2 All-in-one local start target
+
+The code-level entry point is:
+
+```powershell
+bun run local:station -- start
+bun run local:station -- status
+bun run local:station -- stop
+```
+
+The supervisor manages:
+- Next.js local workstation on `127.0.0.1:3000`;
+- Dukascopy M1 polling worker for XAUUSD-DUKA;
+- Dukascopy M1 polling worker for NAS100-DUKA;
+- XAUUSD-DUKA BID and ASK closed-bar opportunity workers;
+- NAS100-DUKA BID and ASK closed-bar opportunity workers.
+
+The monitor currently keeps a rolling 64-bar M1 sample. The detector processes only closed candles; the forming candle can be displayed but cannot advance the lifecycle. The first structure-break/retest pattern can remain active for at most 20 bars after its break/retest windows, so this sample provides a reasonable startup context for this v1 detector. It is not a replacement for full historical Day Review.
+
+### 11.3 Proposed completion plan from this implementation point
+
+1. **Local runtime verification:** run the launcher on the actual Windows machine; confirm the Prisma DB path, local auth setup, six managed workers, startup/shutdown, worker PID locks, heartbeat, and restart policy. Capture a status snapshot and runtime log.
+2. **Real market-data certification:** import manageable current and historical M1 BID/ASK ranges for both instruments. Verify dataset hashes, gap diagnostics, duplicate candles, zero-range candles, outliers, bar timestamp boundaries and source-side pairing. Do not accept REVIEW as PASS merely to continue.
+3. **Live chart verification:** keep the poller active during an open market; confirm the selected BID chart receives only BID candles (ASK only ASK), latest tick/spread is separate, forming bars do not generate lifecycle transitions, and stale/no-tick/error status is honest.
+4. **Historical event validation:** choose at least five dates per instrument initially, then expand to 5–10 golden days. Hand-annotate structure pivots, break confirmation, retest, trigger, invalidation and expiry. Run Day Review twice and compare event hashes and timeline.
+5. **Recovery fault injection:** stop the detector for under and over eight minutes; confirm rolling-sample catch-up, then import a matching verified revision and test dataset-backed recovery. Change an old bar and verify fingerprint mismatch pauses the cursor. Test a session/weekend gap and ensure it does not silently resume.
+6. **Live-vs-replay reconciliation:** for every monitored session, replay the exact same quote-side revision and compare the expected event sequence against `LIVE_MONITOR` plus `LIVE_RECOVERY`. A mismatch must produce an incident and remain inspectable; never overwrite old event history.
+7. **Risk certification:** only after the actual broker/venue is selected, source the full contract economics and conversions, record provenance, and independently cross-check the calculator. Until that is done, show risk as unavailable and do not calculate position size.
+8. **Browser and operational acceptance:** add Playwright tests for authentication, 1/2/4 chart layouts, local/provider switch, M1 side matching, stale/reconnect state, Day Review, event markers, supervisor restart and recovery. Run ten consecutive real sessions per instrument before declaring the first useful version accepted.
+
+### 11.4 Release boundary
+
+The implementation provides a local observation and retrospective opportunity research workstation. It does not yet provide a certified trading signal, strategy profitability, simulated fill, paper order-management system, or live broker execution. Real provider/data validation, venue economics, user strategy approval and ten-session acceptance remain external gates.
