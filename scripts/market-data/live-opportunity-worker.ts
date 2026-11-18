@@ -627,6 +627,56 @@ async function printStatus(input: ParsedArgs): Promise<void> {
   }, null, 2) + "\n");
 }
 
+async function acquireWorkerLock(lockPath: string): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const lock = await open(lockPath, "wx");
+      await lock.writeFile(String(process.pid) + "\n");
+      await lock.close();
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+
+    let currentContents: string;
+    let fileStat: Awaited<ReturnType<typeof stat>>;
+    try {
+      [currentContents, fileStat] = await Promise.all([
+        readFile(lockPath, "utf8"),
+        stat(lockPath),
+      ]);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+
+    const existingPid = Number(currentContents.trim());
+    if (!Number.isInteger(existingPid) || existingPid <= 0) {
+      if (Date.now() - fileStat.mtimeMs < 30_000) {
+        throw new Error("A worker lock is being initialized; refusing to remove a recent incomplete lock.");
+      }
+    } else {
+      try {
+        process.kill(existingPid, 0);
+        throw new Error("Live opportunity worker already holds this lock (PID " + existingPid + ").");
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "EPERM") {
+          throw new Error("Live opportunity worker lock is owned by a process that cannot be inspected (PID " + existingPid + ").");
+        }
+        if (code !== "ESRCH") throw error;
+      }
+    }
+
+    // Avoid deleting a lock replaced by another process between read and cleanup.
+    const latest = await readFile(lockPath, "utf8").catch(() => null);
+    if (latest === currentContents) {
+      await rm(lockPath, { force: true });
+    }
+  }
+  throw new Error("Could not acquire worker lock after stale-lock recovery.");
+}
+
 async function run(input: ParsedArgs): Promise<void> {
   const instrumentDirectory = resolve(process.cwd(), "data/market-data/.monitor");
   await mkdir(instrumentDirectory, { recursive: true });
@@ -635,17 +685,7 @@ async function run(input: ParsedArgs): Promise<void> {
     "live-opportunity-" + input.instrumentId.toLowerCase() + "-" + input.priceSide + ".pid"
   );
 
-  let lock;
-  try {
-    lock = await open(lockPath, "wx");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      throw new Error("A live opportunity worker already holds the lock for this instrument and quote side.");
-    }
-    throw error;
-  }
-  await lock.writeFile(String(process.pid) + "\n");
-  await lock.close();
+  await acquireWorkerLock(lockPath);
 
   let stopping = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
