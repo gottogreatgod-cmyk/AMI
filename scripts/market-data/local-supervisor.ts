@@ -45,9 +45,11 @@ export function isRestartAllowed(
 }
 
 type InstrumentTarget = {
+  kind: "MARKET_POLL" | "LIVE_OPPORTUNITY";
   instrumentId: "XAUUSD-DUKA" | "NAS100-DUKA";
   timeframe: "m1";
   pollSeconds: number;
+  priceSide?: "bid" | "ask";
 };
 
 type WorkerRuntime = {
@@ -79,12 +81,17 @@ type SupervisorSnapshot = {
 
 const ROOT = resolve(process.cwd());
 const MONITOR_SCRIPT = resolve(ROOT, "scripts/market-data/monitor-dukascopy.ts");
+const LIVE_OPPORTUNITY_SCRIPT = resolve(ROOT, "scripts/market-data/live-opportunity-worker.ts");
 const MONITOR_ROOT = resolve(ROOT, "data/market-data/.monitor");
 const PID_PATH = join(MONITOR_ROOT, "local-supervisor.pid");
 const STATE_PATH = join(MONITOR_ROOT, "local-supervisor.latest.json");
 const TARGETS: InstrumentTarget[] = [
-  { instrumentId: "XAUUSD-DUKA", timeframe: "m1", pollSeconds: 60 },
-  { instrumentId: "NAS100-DUKA", timeframe: "m1", pollSeconds: 60 },
+  { kind: "MARKET_POLL", instrumentId: "XAUUSD-DUKA", timeframe: "m1", pollSeconds: 60 },
+  { kind: "MARKET_POLL", instrumentId: "NAS100-DUKA", timeframe: "m1", pollSeconds: 60 },
+  { kind: "LIVE_OPPORTUNITY", instrumentId: "XAUUSD-DUKA", timeframe: "m1", priceSide: "bid", pollSeconds: 5 },
+  { kind: "LIVE_OPPORTUNITY", instrumentId: "XAUUSD-DUKA", timeframe: "m1", priceSide: "ask", pollSeconds: 5 },
+  { kind: "LIVE_OPPORTUNITY", instrumentId: "NAS100-DUKA", timeframe: "m1", priceSide: "bid", pollSeconds: 5 },
+  { kind: "LIVE_OPPORTUNITY", instrumentId: "NAS100-DUKA", timeframe: "m1", priceSide: "ask", pollSeconds: 5 },
 ];
 
 let stopping = false;
@@ -180,17 +187,10 @@ async function startWorker(worker: WorkerRuntime): Promise<void> {
   await writeSnapshot();
 
   try {
-    const child = Bun.spawn([
-      process.execPath,
-      "run",
-      MONITOR_SCRIPT,
-      "--instrument",
-      worker.target.instrumentId,
-      "--timeframe",
-      worker.target.timeframe,
-      "--poll-seconds",
-      String(worker.target.pollSeconds),
-    ], {
+    const workerArgs = worker.target.kind === "MARKET_POLL"
+      ? [process.execPath, "run", MONITOR_SCRIPT, "--instrument", worker.target.instrumentId, "--timeframe", worker.target.timeframe, "--poll-seconds", String(worker.target.pollSeconds)]
+      : [process.execPath, "run", LIVE_OPPORTUNITY_SCRIPT, "--instrument", worker.target.instrumentId, "--price-side", worker.target.priceSide!, "--poll-seconds", String(worker.target.pollSeconds)];
+    const child = Bun.spawn(workerArgs, {
       cwd: ROOT,
       stdin: "inherit",
       stdout: "inherit",
