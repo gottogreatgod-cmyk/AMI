@@ -69,11 +69,11 @@ The first detector is `structure-break-retest` v1.0.0. It is an explicitly versi
 - Prisma stores a durable `LiveOpportunityCursor` per exact instrument/provider/timeframe/price-side/detector configuration and append-only `LiveOpportunityEvent` rows.
 - Each event includes a stable identity, sequence, setup identity, lifecycle type, direction, market occurrence/discovery timestamps, source bar fingerprint, source poll receive timestamp, provider tick timestamp, structured evidence, and origin.
 - The forward processor uses the same pure detector as replay and receives a single closed candle at each step.
-- The first eight-bar context sample is labelled `LIVE_BOOTSTRAP`. Events generated from bars processed after the persisted watermark are labelled `LIVE_MONITOR`.
+- The first up-to-64-bar contiguous context sample is labelled `LIVE_BOOTSTRAP`. Events generated from bars processed after the persisted watermark are labelled `LIVE_MONITOR`.
 - If the last processed bar changes, a snapshot regresses, or a missing M1 interval is detected, the cursor enters `GAP_UNRECONCILED` and stops advancing. A manual `--reseed` begins a new cursor generation; it deliberately does not claim to reconstruct the missed active state.
 - `LIVE_BOOTSTRAP` and `LIVE_MONITOR` events are stored separately from historical replay runs. No order, fill or position records are created.
 
-**Remaining limitation:** this initial live worker only has the monitor's recent closed-bar sample for catch-up (now 64 closed M1 bars, enough for the first detector's maximum 20-bar active lifecycle plus swing confirmation). A longer outage or session gap needs a verified historical data revision to bridge it. Automatic dataset-backed recovery and replay/live reconciliation are not yet complete.
+**Remaining limitation:** the live worker first checks the monitor's recent closed-bar sample (up to 64 M1 bars). For a longer outage or gap it attempts recovery from a hash-verified PASS dataset for the same instrument/timeframe/price side, but will only resume if the stored watermark candle fingerprint matches and every following M1 candle through the latest live closed bar is present. This code path is covered by the shared processor's gap/fingerprint tests, but still requires local validation against actual imported BID/ASK archives and forced worker outages. Full replay/live event parity over golden days remains open.
 
 ## 2. What is not yet certified or complete
 
@@ -85,7 +85,7 @@ The first detector is `structure-break-retest` v1.0.0. It is an explicitly versi
 | Dukascopy polling | Worker, supervisor and API implemented | Run on the user's network through active and closed-market periods; validate quote timestamps/provider availability |
 | M1 chart live tail | Code path implemented | Verify actual chart movement, side match, forming/closed candle behavior and stale-feed recovery locally |
 | Historical replay | Engine, detector, API, persistence and UI implemented | Run against real imported golden days and compare to manually annotated results |
-| Automatic live opportunities | Worker, cursor/event persistence, supervisor integration, API and UI implemented; local/provider run not certified | Verify live event times and state transitions; implement dataset-backed recovery for outages longer than the monitor sample; compare with replay |
+| Automatic live opportunities | Worker, cursor/event persistence, supervisor integration, API and UI implemented; dataset-backed recovery code implemented but not locally certified | Verify live event times, recovery revision match and state transitions on real BID/ASK data; compare with replay |
 | Unified replay/live lifecycle | Same detector code is used by replay and live; separate immutable replay and forward-live event stores with distinct origins | Add complete dataset-backed catch-up/reconciliation, then compare replay and live logs over real sessions |
 | Risk sizing | Pure calculator exists; live instrument economics absent | Supply actual broker/venue specifications, costs, margin, account currency and independently cross-check |
 | Browser E2E | Not implemented | Add Playwright coverage for auth, source switching, M1 chart, 1/2/4 layout, Day Review, live cursor state and stale/gap recovery |
