@@ -73,7 +73,7 @@ The first detector is `structure-break-retest` v1.0.0. It is an explicitly versi
 - If the last processed bar changes, a snapshot regresses, or a missing M1 interval is detected, the cursor enters `GAP_UNRECONCILED` and stops advancing. A manual `--reseed` begins a new cursor generation; it deliberately does not claim to reconstruct the missed active state.
 - `LIVE_BOOTSTRAP` and `LIVE_MONITOR` events are stored separately from historical replay runs. No order, fill or position records are created.
 
-**Remaining limitation:** this initial live worker only has the monitor's recent closed-bar sample for catch-up (normally the last eight bars). A longer outage or session gap needs a verified historical data revision to bridge it. Automatic dataset-backed recovery and replay/live reconciliation are not yet complete.
+**Remaining limitation:** this initial live worker only has the monitor's recent closed-bar sample for catch-up (now 64 closed M1 bars, enough for the first detector's maximum 20-bar active lifecycle plus swing confirmation). A longer outage or session gap needs a verified historical data revision to bridge it. Automatic dataset-backed recovery and replay/live reconciliation are not yet complete.
 
 ## 2. What is not yet certified or complete
 
