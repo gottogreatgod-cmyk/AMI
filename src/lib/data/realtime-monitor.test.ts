@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   classifyMonitorFreshness,
+  classifyMonitorHealth,
   normalizeMonitorCandles,
   normalizeMonitorTick,
   MONITOR_TIMEFRAME_MS,
@@ -107,5 +108,83 @@ describe("experimental Dukascopy monitor normalization", () => {
       spread: 1,
       spreadBps: 4.99,
     }, 100_000, 60_000).state).toBe("STALE");
+  });
+});
+
+
+describe("read-time monitor health", () => {
+  const now = Date.parse("2026-11-18T12:00:00.000Z");
+
+  test("does not keep a previously fresh snapshot fresh after the poller stops writing", () => {
+    const health = classifyMonitorHealth({
+      snapshotWrittenAt: now - 10 * 60_000,
+      snapshotFetchedAt: now - 10 * 60_000,
+      tickTimestamp: now - 10 * 60_000,
+      timeframe: "m1",
+      pollSeconds: 60,
+      lastError: null,
+      now,
+    });
+
+    expect(health.state).toBe("STALE");
+    expect(health.reason).toBe("POLL_WRITE_STALE");
+    expect(health.writerResponsive).toBe(false);
+  });
+
+  test("marks an old provider tick stale even while the poller continues writing", () => {
+    const health = classifyMonitorHealth({
+      snapshotWrittenAt: now - 5_000,
+      snapshotFetchedAt: now - 5_000,
+      tickTimestamp: now - 5 * 60_000,
+      timeframe: "m1",
+      pollSeconds: 60,
+      lastError: null,
+      now,
+    });
+
+    expect(health.state).toBe("STALE");
+    expect(health.reason).toBe("PROVIDER_TICK_STALE");
+    expect(health.writerResponsive).toBe(true);
+  });
+
+  test("keeps missing provider ticks distinct from a failed poll", () => {
+    const noTick = classifyMonitorHealth({
+      snapshotWrittenAt: now - 1_000,
+      snapshotFetchedAt: now - 1_000,
+      tickTimestamp: null,
+      timeframe: "m1",
+      pollSeconds: 60,
+      lastError: null,
+      now,
+    });
+    const failed = classifyMonitorHealth({
+      snapshotWrittenAt: now - 1_000,
+      snapshotFetchedAt: now - 60_000,
+      tickTimestamp: null,
+      timeframe: "m1",
+      pollSeconds: 60,
+      lastError: "provider timeout",
+      now,
+    });
+
+    expect(noTick.state).toBe("NO_TICK");
+    expect(failed.state).toBe("ERROR");
+    expect(failed.reason).toBe("LAST_POLL_FAILED");
+  });
+
+  test("keeps a tick fresh only while both the snapshot writer and provider tick are recent", () => {
+    const health = classifyMonitorHealth({
+      snapshotWrittenAt: now - 10_000,
+      snapshotFetchedAt: now - 10_000,
+      tickTimestamp: now - 30_000,
+      timeframe: "m1",
+      pollSeconds: 60,
+      lastError: null,
+      now,
+    });
+
+    expect(health.state).toBe("FRESH");
+    expect(health.reason).toBe("OK");
+    expect(health.writerResponsive).toBe(true);
   });
 });
