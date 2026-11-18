@@ -148,6 +148,40 @@ describe("deterministic historical replay engine", () => {
     expect(first.events).toEqual(second.events);
   });
 
+
+  test("retains warmup setup history as context without counting it as reviewed bars", () => {
+    const bars = makeBars(8);
+    const machine: ReplayMachine<number> = {
+      detectorId: "warmup-state",
+      detectorVersion: "1",
+      createInitialState: () => 0,
+      onClosedBar: (state, context) => ({
+        state: state + 1,
+        events: context.barIndex === 1
+          ? [{
+              setupKey: "setup-before-window",
+              eventKey: "FORMING",
+              type: "FORMING",
+              reason: "Setup formed during warmup.",
+            }]
+          : context.barIndex === 3
+            ? [{
+                setupKey: "setup-before-window",
+                eventKey: "ARMED",
+                type: "ARMED",
+                reason: "Setup armed inside review window.",
+              }]
+            : [],
+      }),
+    };
+
+    const result = runHistoricalReplay(baseRequest(bars, machine));
+    expect(result.evaluatedBars).toBe(3);
+    expect(result.events.map((event) => event.eventKey)).toEqual(["FORMING", "ARMED"]);
+    expect(result.events[0].withinRequestedRange).toBe(false);
+    expect(result.events[1].withinRequestedRange).toBe(true);
+  });
+
   test("rejects future-dated event occurrence and future-dated evidence", () => {
     const bars = makeBars(8);
     const machine: ReplayMachine<number> = {
