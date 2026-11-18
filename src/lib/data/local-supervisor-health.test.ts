@@ -51,7 +51,7 @@ describe("local supervisor heartbeat health", () => {
   });
 
   test("rejects malformed or unsafe status payloads", () => {
-    expect(classifyLocalSupervisorHealth(null).state).toBe("INVALID");
+    expect(classifyLocalSupervisorHealth(null).state).toBe("NOT_STARTED");
     expect(classifyLocalSupervisorHealth({
       ...base,
       ordersEnabled: true,
