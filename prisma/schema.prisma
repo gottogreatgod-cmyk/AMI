@@ -216,3 +216,72 @@ model ReplayEvent {
   @@index([replayRunId, discoveredAtTs])
   @@index([setupId, occurredAtTs])
 }
+
+
+// ---------------------------------------------------------------------------
+// Forward live opportunity monitor. It consumes only fresh, closed, quote-side
+// bars and commits the detector state + watermark + emitted events atomically.
+// Historical replay remains a distinct origin and store.
+// ---------------------------------------------------------------------------
+
+model LiveOpportunityCursor {
+  id                      String   @id @default(cuid())
+  cursorKey               String   @unique
+  instrumentId            String
+  providerInstrument      String
+  timeframe               String
+  priceSide               String
+  detectorId              String
+  detectorVersion         String
+  paramsHash              String
+  engineVersion           String
+  stateSchemaVersion      Int      @default(1)
+  stateJson               String
+  lastProcessedBarTs      Float?
+  lastProcessedBarCloseTs Float?
+  barsProcessedCount      Int      @default(0)
+  lastEventSequence       Int      @default(0)
+  status                  String   @default("NOT_STARTED")
+  lastError               String?
+  lastSnapshotFetchedAt   Float?
+  lastTickTimestamp       Float?
+  heartbeatAt             DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  events                  LiveOpportunityEvent[]
+
+  @@index([instrumentId, timeframe, priceSide, status])
+  @@index([updatedAt])
+}
+
+model LiveOpportunityEvent {
+  id                    String               @id @default(cuid())
+  cursorId              String
+  cursor                LiveOpportunityCursor @relation(fields: [cursorId], references: [id], onDelete: Cascade)
+  eventIdentity         String
+  sequence              Int
+  setupId               String
+  eventKey              String
+  type                  String
+  direction             String?
+  instrumentId          String
+  timeframe             String
+  priceSide             String
+  occurredAtTs          Float
+  discoveredAtTs        Float
+  confirmationBarTs     Float
+  confirmationBarCloseTs Float
+  sourceBarFingerprint  String
+  sourcePollFetchedAt   Float
+  sourceTickTimestamp   Float?
+  reason                String
+  evidenceJson          String               @default("[]")
+  origin                String               @default("LIVE_MONITOR")
+  recordedAt            DateTime             @default(now())
+
+  @@unique([cursorId, eventIdentity])
+  @@unique([cursorId, sequence])
+  @@index([cursorId, discoveredAtTs])
+  @@index([setupId, occurredAtTs])
+  @@index([instrumentId, timeframe, priceSide, discoveredAtTs])
+}
