@@ -671,8 +671,7 @@ bun run local:station -- status
 bun run local:station -- stop
 ```
 
-The supervisor manages:
-- Next.js local workstation on `127.0.0.1:3000`;
+The local launcher manages the Next.js workstation on `127.0.0.1:3000` and starts the local process supervisor. The supervisor manages:
 - Dukascopy M1 polling worker for XAUUSD-DUKA;
 - Dukascopy M1 polling worker for NAS100-DUKA;
 - XAUUSD-DUKA BID and ASK closed-bar opportunity workers;
