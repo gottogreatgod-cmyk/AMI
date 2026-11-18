@@ -105,6 +105,21 @@ describe("Dukascopy CSV normalization", () => {
     expect(result.diagnostics.qualityStatus).toBe("REVIEW");
   });
 
+
+  test("reports a single missing candle interval instead of hiding short gaps", () => {
+    const first = Date.parse("2024-01-01T00:00:00.000Z");
+    const csv = [
+      "timestamp,open,high,low,close,volume",
+      first + ",2050,2052,2049,2051,10",
+      (first + 2 * HOUR) + ",2051,2053,2050,2052,12",
+    ].join("\\n");
+    const result = parseDukascopyCsv(csv, defaultOptions);
+
+    expect(result.bars).toHaveLength(2);
+    expect(result.diagnostics.unclassifiedGaps).toBe(1);
+    expect(result.diagnostics.qualityStatus).toBe("REVIEW");
+  });
+
   test("marks volume unavailable when the source omits it", () => {
     const timestamp = Date.parse("2024-01-01T00:00:00.000Z");
     const csv = [
