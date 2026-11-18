@@ -13,7 +13,9 @@ This document is the operational source of truth for what is implemented, what i
 - `bun run local:station -- start` performs Prisma client generation and a non-destructive schema push, starts the Next.js app on `127.0.0.1:3000`, and starts the Dukascopy monitor supervisor for XAUUSD-DUKA and NAS100-DUKA.
 - `bun run local:station -- status` prints the local host heartbeat and supervisor snapshot.
 - `bun run local:station -- stop` requests graceful shutdown of the host, app and supervisor.
-- The supervisor starts one M1 poller per instrument at a 60-second interval, records worker state, retries with bounded exponential backoff, and stops retrying after five failures in a rolling 15-minute window.
+- The supervisor starts one M1 market poller per instrument at a 60-second interval plus four quote-side live opportunity workers (BID and ASK for each instrument) at a 5-second cursor-check interval.
+- Each worker is isolated by instrument and quote side, has a process lock and bounded restart policy, and records worker state. The supervisor retries with bounded exponential backoff and stops retrying after five failures in a rolling 15-minute window.
+- A live worker consumes only fresh M1 `closedBars`; it never uses a forming candle to transition a setup. It uses the same `structure-break-retest` v1.0.0 detector as historical replay.
 - Both the launcher and monitor supervisor write PID/heartbeat state below the ignored local data directory.
 - The local runner requires a file-backed SQLite URL and a non-placeholder `NEXTAUTH_SECRET`. It binds the development server to loopback only.
 - Order routing remains disabled. The launcher and worker status contracts carry `ordersEnabled: false`.
@@ -55,8 +57,23 @@ This is a local development/observation supervisor, not a production service man
 - Replay runs and ordered events are persisted transactionally and scoped to the signed-in user. Repeating the same run is idempotent. A changed result under the same identity becomes a conflict; the original history is preserved.
 - `POST /api/replay` accepts an exact local dataset ID, a UTC epoch-millisecond interval, warmup size and detector settings. `GET /api/replay` lists or retrieves saved runs.
 - The workstation has a DAY REVIEW tab with dataset selection, UTC day selection, warmup bars, explicit REVIEW opt-in, M1 chart, retrospective event markers and the lifecycle/evidence timeline.
+- The live opportunity panel reads the authenticated `GET /api/opportunities/live` endpoint and shows current cursor state, active setup, break/invalidation levels, last processed closed bar, tick age, worker heartbeat and recent events.
+- The live opportunity processor keeps a durable cursor/watermark per instrument, side and detector configuration. Repeated snapshots do not duplicate bars/events. Changed historical bars and unclassified intervals stop the cursor in `GAP_UNRECONCILED`.
+- Initial/reseed context is stored as `LIVE_BOOTSTRAP`; only transitions processed after the initial watermark are `LIVE_MONITOR`. Bootstrap events are explicitly not historical live alerts.
 
 The first detector is `structure-break-retest` v1.0.0. It is an explicitly versioned research heuristic: confirmed swing, closed-bar structure break, close-based retest/arming, subsequent close trigger, invalidation or expiry. Its existence is not evidence of profitability, and a trigger is not a fill.
+
+
+### 1.5 Forward live opportunity monitoring
+
+- Prisma stores a durable `LiveOpportunityCursor` per exact instrument/provider/timeframe/price-side/detector configuration and append-only `LiveOpportunityEvent` rows.
+- Each event includes a stable identity, sequence, setup identity, lifecycle type, direction, market occurrence/discovery timestamps, source bar fingerprint, source poll receive timestamp, provider tick timestamp, structured evidence, and origin.
+- The forward processor uses the same pure detector as replay and receives a single closed candle at each step.
+- The first eight-bar context sample is labelled `LIVE_BOOTSTRAP`. Events generated from bars processed after the persisted watermark are labelled `LIVE_MONITOR`.
+- If the last processed bar changes, a snapshot regresses, or a missing M1 interval is detected, the cursor enters `GAP_UNRECONCILED` and stops advancing. A manual `--reseed` begins a new cursor generation; it deliberately does not claim to reconstruct the missed active state.
+- `LIVE_BOOTSTRAP` and `LIVE_MONITOR` events are stored separately from historical replay runs. No order, fill or position records are created.
+
+**Remaining limitation:** this initial live worker only has the monitor's recent closed-bar sample for catch-up (normally the last eight bars). A longer outage or session gap needs a verified historical data revision to bridge it. Automatic dataset-backed recovery and replay/live reconciliation are not yet complete.
 
 ## 2. What is not yet certified or complete
 
@@ -68,10 +85,10 @@ The first detector is `structure-break-retest` v1.0.0. It is an explicitly versi
 | Dukascopy polling | Worker, supervisor and API implemented | Run on the user's network through active and closed-market periods; validate quote timestamps/provider availability |
 | M1 chart live tail | Code path implemented | Verify actual chart movement, side match, forming/closed candle behavior and stale-feed recovery locally |
 | Historical replay | Engine, detector, API, persistence and UI implemented | Run against real imported golden days and compare to manually annotated results |
-| Automatic live opportunities | Not implemented | Reuse the replay detector on each newly closed bar with a durable watermark, catch-up and deduplication |
-| Unified replay/live lifecycle | Replay persistence is present; live event origin/storage is not | Add shared setup/event contract, LIVE_MONITOR origin and reconciliation semantics |
+| Automatic live opportunities | Worker, cursor/event persistence, supervisor integration, API and UI implemented; local/provider run not certified | Verify live event times and state transitions; implement dataset-backed recovery for outages longer than the monitor sample; compare with replay |
+| Unified replay/live lifecycle | Same detector code is used by replay and live; separate immutable replay and forward-live event stores with distinct origins | Add complete dataset-backed catch-up/reconciliation, then compare replay and live logs over real sessions |
 | Risk sizing | Pure calculator exists; live instrument economics absent | Supply actual broker/venue specifications, costs, margin, account currency and independently cross-check |
-| Browser E2E | Not implemented | Add Playwright coverage for auth, source switching, M1 chart, 1/2/4 layout, Day Review and stale recovery |
+| Browser E2E | Not implemented | Add Playwright coverage for auth, source switching, M1 chart, 1/2/4 layout, Day Review, live cursor state and stale/gap recovery |
 | Golden-day acceptance | Test infrastructure partly present; real golden days not certified | Curate representative dates per instrument and complete repeatable day-review comparison |
 | Paper OMS / live routing | Deliberately out of scope | Do not enable until separate approval, validated risk, execution simulator and operational certification |
 
@@ -131,7 +148,17 @@ bun run local:station -- status
 bun run local:station -- stop
 ```
 
-The supervisor launches M1 pollers for both instruments. The monitor is separate from the historical downloader. If the provider cannot return a current tick, the monitor state will show NO_TICK/STALE/ERROR rather than pretending that the feed is live.
+The supervisor launches two M1 pollers and four live opportunity workers (BID and ASK for XAUUSD-DUKA and NAS100-DUKA). It checks the persisted cursor every five seconds, but it only transitions setups on newly closed bars from a fresh polling snapshot. The monitor is separate from the historical downloader. If the provider cannot return a current tick, the feed state will show NO_TICK/STALE/ERROR and live detector processing will pause.
+
+If a live cursor enters `GAP_UNRECONCILED`, AMI will not skip the missing bars. The worker is currently fail-closed: stop the supervisor, inspect/download and verify the exact missing interval, then deliberately reseed that specific instrument/side cursor from a fresh snapshot only if you accept that the prior active state cannot be reconstructed by the current poll-snapshot worker:
+
+```powershell
+bun run local:station -- stop
+bun run scripts/market-data/live-opportunity-worker.ts --instrument XAUUSD-DUKA --price-side bid --poll-seconds 5 --reseed --once
+bun run local:station -- start
+```
+
+Repeat for the affected cursor only. Reseeding increments its cursor generation, retains its prior event history, and labels new seed events `LIVE_BOOTSTRAP`. It does not certify or repair the missing interval. Dataset-backed automatic catch-up/reconciliation remains a next-stage requirement.
 
 ### 3.4 Use the charts and Day Review
 
