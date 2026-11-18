@@ -6,8 +6,8 @@ This snapshot separates committed code from live-market validation and research-
 
 | Work item | Current evidence | Remaining gate |
 |---|---|---|
-| P0 workstation and signal repair | Refresh/polling/chart lifecycle and live/backtest evaluator changes committed | Manual browser sign-off |
-| CI and deterministic engine/data tests | GitHub Actions run #401 passed on 17 November 2026: frozen install, Prisma client generation and isolated SQLite schema apply, lint, strict TypeScript, 135 Bun tests across 17 files (including DB-backed opportunity store/API tests), 6 Python NQ importer tests, five offline CLI smoke checks and production build | Add route-level integration, browser, accessibility and security tests |
+| P0 workstation and signal repair | Refresh/polling/chart lifecycle and live/backtest evaluator changes committed on PR #1 | Manual browser sign-off; no claim of clean-checkout acceptance beyond CI |
+| CI and deterministic engine/data tests | GitHub Actions run #406 passed on 18 November 2026: frozen install, Prisma client generation and isolated SQLite schema apply, lint, strict TypeScript, Bun tests, 6 Python NQ importer tests, five offline CLI smoke checks and production build | Record exact test counts from run output; add route-level integration, browser, accessibility and security tests |
 | Canonical instrument metadata | CFD, OTC spot, dated futures, continuous futures and tokenized metal are distinct | Migrate active registry and verify contract/session economics |
 | XAU/USD and NAS100 history | Pinned Dukascopy downloader, separate bid/ask imports, UTC normalization and manifests committed | Import real data and audit actual coverage/session gaps |
 | Dataset provenance and verification | Hash-bound IDs; source CSV replay; normalized CSV regeneration; OHLC, duplicate, gap, volume, identity and quality checks; CLI/API catalogue | Resumable downloads and real-data audit |
