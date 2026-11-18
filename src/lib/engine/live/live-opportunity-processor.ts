@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Bar } from "../types";
 import type { ReplayEventDraft, ReplayMachine } from "../replay/replay-engine";
 
-export type ForwardEventOrigin = "LIVE_BOOTSTRAP" | "LIVE_MONITOR";
+export type ForwardEventOrigin = "LIVE_BOOTSTRAP" | "LIVE_MONITOR" | "LIVE_RECOVERY";
 export type ForwardBatchStatus =
   | "BOOTSTRAPPED"
   | "PROCESSED"
@@ -108,6 +108,7 @@ export function processForwardClosedBars<State>(input: {
   timeframe: string;
   timeframeMs: number;
   maxBootstrapBars?: number;
+  processingOrigin?: "LIVE_MONITOR" | "LIVE_RECOVERY";
 }): ForwardBatchResult<State> {
   const initialState = input.machine.createInitialState();
   const normalized = normalizeClosedBars(input.bars);
