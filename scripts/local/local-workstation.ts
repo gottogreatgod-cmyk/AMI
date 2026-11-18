@@ -122,10 +122,13 @@ async function stopChild(
   if (!child) return;
   try {
     child.kill("SIGTERM");
-    const exited = await Promise.race([
-      child.exited.then(() => true),
-      sleep(10_000).then(() => false),
-    ]);
+    const exited = await new Promise<boolean>((resolvePromise) => {
+      const timer = setTimeout(() => resolvePromise(false), 10_000);
+      child.exited.then(() => {
+        clearTimeout(timer);
+        resolvePromise(true);
+      });
+    });
     if (!exited) {
       process.stdout.write("[AMI] " + label + " did not stop in 10 seconds; sending SIGKILL.\n");
       child.kill("SIGKILL");
@@ -285,7 +288,7 @@ async function requestStop(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const action = Bun.argv[2] ?? "start";
+  const action = Bun.argv.slice(2).find((argument) => argument !== "--") ?? "start";
   if (action === "status") return printStatus();
   if (action === "stop") return requestStop();
   if (action !== "start") {
