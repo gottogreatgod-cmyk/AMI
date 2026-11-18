@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         return badRequest("datasetId does not belong to the requested symbol");
       }
       const datasetTimeframeMap: Record<string, Timeframe | undefined> = {
+        m1: "1m",
         m15: "15m",
         h1: "1h",
         h4: "4h",
@@ -81,6 +82,13 @@ export async function GET(req: NextRequest) {
         },
         operationPolicy: assessMarketDatasetUse(loaded.manifest, { allowReview }),
       });
+    }
+
+    if (tf === "1m") {
+      return NextResponse.json({
+        error: "M1_REQUIRES_LOCAL_DATASET",
+        message: "M1 charts are currently available only from an explicitly selected, hash-verified local dataset revision.",
+      }, { status: 422 });
     }
 
     const inst = getInstrument(symbol);
