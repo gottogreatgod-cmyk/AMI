@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { mkdir, open, readFile, rm, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { db } from "../../src/lib/db";
+import { listMarketDatasets, loadMarketDataset } from "../../src/lib/data/market-dataset-store";
+import { assessMarketDatasetUse } from "../../src/lib/data/market-dataset-policy";
 import {
   classifyMonitorHealth,
   type MonitorBar,
@@ -18,8 +20,10 @@ import {
   type StructureBreakRetestState,
 } from "../../src/lib/engine/replay/detectors/structure-break-retest-detector";
 import {
+  fingerprintForwardBar,
   processForwardClosedBars,
   type ForwardBar,
+  type ForwardEventDraft,
   type ForwardCursor,
 } from "../../src/lib/engine/live/live-opportunity-processor";
 
@@ -188,12 +192,14 @@ function buildEventRows(input: {
     evidence?: ReplayEventDraft["evidence"];
     bar: ForwardBar;
     sourceBarFingerprint: string;
-    origin: "LIVE_BOOTSTRAP" | "LIVE_MONITOR";
+    origin: "LIVE_BOOTSTRAP" | "LIVE_MONITOR" | "LIVE_RECOVERY";
   }>;
   pollFetchedAt: number;
   tickTimestamp: number | null;
   startSequence: number;
   generation: number;
+  sourceRevisionId?: string | null;
+  sourceRevisionHash?: string | null;
 }) {
   return input.events.map((event, index) => ({
     eventIdentity: hash([
@@ -228,6 +234,8 @@ function buildEventRows(input: {
     confirmationBarTs: event.bar.t,
     confirmationBarCloseTs: event.bar.ct,
     sourceBarFingerprint: event.sourceBarFingerprint,
+    sourceRevisionId: input.sourceRevisionId ?? null,
+    sourceRevisionHash: input.sourceRevisionHash ?? null,
     sourcePollFetchedAt: input.pollFetchedAt,
     sourceTickTimestamp: input.tickTimestamp,
     reason: event.reason,
@@ -362,6 +370,110 @@ async function persistCursorAndEvents(input: {
   });
 }
 
+async function recoverFromVerifiedDataset(input: {
+  instrumentId: InstrumentId;
+  priceSide: PriceSide;
+  cursor: {
+    stateJson: string;
+    barsProcessedCount: number;
+    lastProcessedBarTs: number | null;
+    lastProcessedBarCloseTs: number | null;
+    lastProcessedBarFingerprint: string | null;
+  };
+  latestLiveBarTs: number;
+}) {
+  if (
+    input.cursor.lastProcessedBarTs === null ||
+    input.cursor.lastProcessedBarFingerprint === null
+  ) return null;
+
+  const catalog = await listMarketDatasets();
+  const candidates = catalog.datasets
+    .filter((item) =>
+      item.instrumentId === input.instrumentId &&
+      item.timeframe === TIMEFRAME &&
+      item.priceSide === input.priceSide &&
+      item.qualityStatus === "PASS" &&
+      item.fromTs !== null &&
+      item.toTs !== null &&
+      item.fromTs <= input.cursor.lastProcessedBarTs! &&
+      item.toTs >= input.latestLiveBarTs
+    )
+    .sort((left, right) =>
+      (right.importedAt ?? "").localeCompare(left.importedAt ?? "")
+    );
+
+  for (const candidate of candidates) {
+    try {
+      const dataset = await loadMarketDataset(candidate.datasetId);
+      const manifest = dataset.manifest;
+      const policy = assessMarketDatasetUse(manifest, { allowReview: false });
+
+      if (
+        !policy.signalResearch.allowed ||
+        manifest.quality.qualityStatus !== "PASS" ||
+        manifest.instrument.id !== input.instrumentId ||
+        manifest.provenance.provider !== "Dukascopy" ||
+        manifest.provenance.providerInstrument !== INSTRUMENTS[input.instrumentId].providerInstrument ||
+        manifest.interval.timeframe !== TIMEFRAME ||
+        manifest.pricing.datasetPriceSide !== input.priceSide
+      ) continue;
+
+      const bars: ForwardBar[] = dataset.bars
+        .filter((bar) =>
+          bar.t >= input.cursor.lastProcessedBarTs! &&
+          bar.t <= input.latestLiveBarTs
+        )
+        .map((bar) => ({
+          t: bar.t,
+          ct: bar.ct,
+          o: bar.o,
+          h: bar.h,
+          l: bar.l,
+          c: bar.c,
+          v: bar.v ?? 0,
+          forming: false,
+        }));
+
+      const watermark = bars.find((bar) => bar.t === input.cursor.lastProcessedBarTs);
+      if (!watermark || fingerprintForwardBar(watermark) !== input.cursor.lastProcessedBarFingerprint) {
+        continue;
+      }
+
+      const replayed = processForwardClosedBars({
+        cursor: {
+          state: safeJsonState(input.cursor.stateJson),
+          barsProcessedCount: input.cursor.barsProcessedCount,
+          lastProcessedBarTs: input.cursor.lastProcessedBarTs,
+          lastProcessedBarCloseTs: input.cursor.lastProcessedBarCloseTs,
+          lastProcessedBarFingerprint: input.cursor.lastProcessedBarFingerprint,
+        },
+        bars,
+        machine: createStructureBreakRetestMachine(DETECTOR_OPTIONS),
+        instrumentId: input.instrumentId,
+        timeframe: TIMEFRAME,
+        timeframeMs: TIMEFRAME_MS,
+        processingOrigin: "LIVE_RECOVERY",
+      });
+
+      if (
+        (replayed.status === "PROCESSED" || replayed.status === "NO_NEW_BARS") &&
+        replayed.lastProcessedBarTs === input.latestLiveBarTs
+      ) {
+        return {
+          result: replayed,
+          revisionId: manifest.datasetId,
+          revisionHash: manifest.provenance.normalizedSha256,
+        };
+      }
+    } catch (error) {
+      process.stderr.write("[AMI] Recovery revision " + candidate.datasetId +
+        " rejected: " + (error instanceof Error ? error.message : String(error)) + "\n");
+    }
+  }
+  return null;
+}
+
 async function updateCursorHealth(
   cursorId: string,
   status: string,
@@ -454,11 +566,30 @@ async function processSnapshot(input: {
     maxBootstrapBars: 64,
   });
 
-  if (result.status === "GAP_UNRECONCILED" || result.status === "INVALID_BAR") {
+  let finalResult = result;
+  let recoveryRevisionId: string | null = null;
+  let recoveryRevisionHash: string | null = null;
+
+  if (result.status === "GAP_UNRECONCILED" && snapshotData.bars.length > 0) {
+    const latestLiveBarTs = snapshotData.bars[snapshotData.bars.length - 1].t;
+    const recovered = await recoverFromVerifiedDataset({
+      instrumentId: input.instrumentId,
+      priceSide: input.priceSide,
+      cursor,
+      latestLiveBarTs,
+    });
+    if (recovered) {
+      finalResult = recovered.result;
+      recoveryRevisionId = recovered.revisionId;
+      recoveryRevisionHash = recovered.revisionHash;
+    }
+  }
+
+  if (finalResult.status === "GAP_UNRECONCILED" || finalResult.status === "INVALID_BAR") {
     await updateCursorHealth(
       cursor.id,
-      result.status,
-      result.reason,
+      finalResult.status,
+      finalResult.reason,
       fetchedAt,
       snapshotData.tickTimestamp
     );
@@ -469,35 +600,50 @@ async function processSnapshot(input: {
     cursorKey,
     instrumentId: input.instrumentId,
     priceSide: input.priceSide,
-    events: result.events,
+    events: finalResult.events,
     pollFetchedAt: fetchedAt,
     tickTimestamp: snapshotData.tickTimestamp,
     startSequence: cursor.lastEventSequence,
     generation: cursor.generation,
+    sourceRevisionId: recoveryRevisionId,
+    sourceRevisionHash: recoveryRevisionHash,
   });
-  const status = result.state.activeSetup ? "ACTIVE" :
-    result.status === "BOOTSTRAPPED" ? "BOOTSTRAPPED" :
-    result.status === "NO_BARS" ? "WAITING_FOR_CLOSED_BARS" : "RUNNING";
+  const status = finalResult.state.activeSetup ? "ACTIVE" :
+    finalResult.status === "BOOTSTRAPPED" ? "BOOTSTRAPPED" :
+    finalResult.status === "NO_BARS" ? "WAITING_FOR_CLOSED_BARS" : "RUNNING";
 
-  await persistCursorAndEvents({
-    cursorId: cursor.id,
-    result,
-    rows,
-    fetchedAt,
-    tickTimestamp: snapshotData.tickTimestamp,
-    status,
-    lastError: result.reason,
+  await db.$transaction(async (tx) => {
+    await tx.liveOpportunityCursor.update({
+      where: { id: cursor!.id },
+      data: {
+        lastRecoveryRevisionId: recoveryRevisionId ?? cursor!.lastRecoveryRevisionId,
+        lastRecoveryRevisionHash: recoveryRevisionHash ?? cursor!.lastRecoveryRevisionHash,
+        stateJson: JSON.stringify(finalResult.state),
+        barsProcessedCount: finalResult.barsProcessedCount,
+        lastProcessedBarTs: finalResult.lastProcessedBarTs,
+        lastProcessedBarCloseTs: finalResult.lastProcessedBarCloseTs,
+        lastProcessedBarFingerprint: finalResult.lastProcessedBarFingerprint,
+        ...(rows.length > 0 ? { lastEventSequence: rows[rows.length - 1].sequence } : {}),
+        status,
+        lastError: finalResult.reason,
+        lastSnapshotFetchedAt: fetchedAt,
+        lastTickTimestamp: snapshotData.tickTimestamp,
+        heartbeatAt: new Date(),
+        ...(rows.length > 0 ? { events: { create: rows } } : {}),
+      },
+    });
   });
 
   process.stdout.write(JSON.stringify({
     instrumentId: input.instrumentId,
     priceSide: input.priceSide,
     status,
-    batchStatus: result.status,
-    processedBars: result.processedBars,
-    barsProcessedCount: result.barsProcessedCount,
+    batchStatus: finalResult.status,
+    processedBars: finalResult.processedBars,
+    barsProcessedCount: finalResult.barsProcessedCount,
     emittedEvents: rows.length,
-    latestClosedBarTs: result.lastProcessedBarTs,
+    latestClosedBarTs: finalResult.lastProcessedBarTs,
+    recoveryRevisionId,
     providerTickTs: snapshotData.tickTimestamp,
     fetchedAt,
     ordersEnabled: false,
