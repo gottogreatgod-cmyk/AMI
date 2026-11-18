@@ -112,7 +112,7 @@ describe("Dukascopy CSV normalization", () => {
       "timestamp,open,high,low,close,volume",
       first + ",2050,2052,2049,2051,10",
       (first + 2 * HOUR) + ",2051,2053,2050,2052,12",
-    ].join("\\n");
+    ].join("\n");
     const result = parseDukascopyCsv(csv, defaultOptions);
 
     expect(result.bars).toHaveLength(2);
