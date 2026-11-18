@@ -262,7 +262,9 @@ export function parseDukascopyCsv(csv: string, options: CsvImportOptions): Parse
   const bars = [...byTimestamp.values()].sort((a, b) => a.t - b.t);
   diagnostics.acceptedRows = bars.length;
   for (let index = 1; index < bars.length; index++) {
-    if (bars[index].t - bars[index - 1].t > intervalMs * 2) {
+    // Any absent expected interval is surfaced. Until a verified session
+    // calendar exists, this is an unclassified gap, not automatically an outage.
+    if (bars[index].t - bars[index - 1].t > intervalMs) {
       diagnostics.unclassifiedGaps++;
     }
   }
@@ -383,7 +385,7 @@ export async function createMarketDatasetManifest(args: {
     quality: {
       ...args.parsed.diagnostics,
       gapPolicy: "REPORT_ONLY_NO_SYNTHETIC_BARS",
-      gapThresholdMs: DUKASCOPY_TIMEFRAME_MS[args.options.timeframe] * 2,
+      gapThresholdMs: DUKASCOPY_TIMEFRAME_MS[args.options.timeframe],
       calendar: metadata.session.calendar,
       calendarVerified: metadata.session.hoursVerified,
     },
