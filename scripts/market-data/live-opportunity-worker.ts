@@ -9,7 +9,6 @@ import {
   type MonitorBar,
   type MonitorTimeframe,
 } from "../../src/lib/data/realtime-monitor";
-import type { Bar } from "../../src/lib/engine/types";
 import {
   REPLAY_ENGINE_VERSION,
   type ReplayEventDraft,
@@ -199,6 +198,7 @@ function buildEventRows(input: {
       input.instrumentId,
       TIMEFRAME,
       input.priceSide,
+      input.generation,
       DETECTOR.detectorVersion,
       event.bar.ct,
       event.setupKey,
@@ -211,6 +211,7 @@ function buildEventRows(input: {
       input.instrumentId,
       TIMEFRAME,
       input.priceSide,
+      input.generation,
       event.setupKey,
     ]),
     eventKey: event.eventKey,
@@ -245,7 +246,7 @@ function safeJsonState(value: string): StructureBreakRetestState {
   return parsed;
 }
 
-async function getSnapshot(instrumentId: InstrumentId) {
+async function getSnapshot(instrumentId: InstrumentId, priceSide: PriceSide) {
   const root = resolve(process.cwd(), "data/market-data/.monitor");
   const path = join(root, INSTRUMENTS[instrumentId].file);
   const [raw, fileStat] = await Promise.all([
@@ -268,7 +269,7 @@ async function getSnapshot(instrumentId: InstrumentId) {
   });
   const fetchedAt = finite(snapshot.fetchedAt);
   const tickTimestamp = finite(tick?.timestamp);
-  const side = snapshot[currentPriceSide] as Record<string, unknown> | undefined;
+  const side = snapshot[priceSide] as Record<string, unknown> | undefined;
   const closed = Array.isArray(side?.closedBars) ? side.closedBars : [];
   const bars = closed
     .map((value) => {
@@ -299,7 +300,6 @@ async function getSnapshot(instrumentId: InstrumentId) {
   };
 }
 
-let currentPriceSide: PriceSide = "bid";
 
 async function ensureCursor(instrumentId: InstrumentId, priceSide: PriceSide) {
   const cursorKey = buildCursorKey(instrumentId, priceSide);
@@ -319,7 +319,6 @@ async function ensureCursor(instrumentId: InstrumentId, priceSide: PriceSide) {
       stateSchemaVersion: 1,
       stateJson: JSON.stringify(initialState),
       status: "NOT_STARTED",
-      ordersEnabled: false,
     },
     update: {},
   });
@@ -384,10 +383,9 @@ async function processSnapshot(input: {
   priceSide: PriceSide;
   reseed: boolean;
 }): Promise<void> {
-  currentPriceSide = input.priceSide;
   const cursorKey = buildCursorKey(input.instrumentId, input.priceSide);
   const initial = await ensureCursor(input.instrumentId, input.priceSide);
-  const snapshotData = await getSnapshot(input.instrumentId);
+  const snapshotData = await getSnapshot(input.instrumentId, input.priceSide);
   const fetchedAt = snapshotData.fetchedAt ?? Date.now();
 
   if (snapshotData.health.state !== "FRESH") {
@@ -413,7 +411,7 @@ async function processSnapshot(input: {
         lastProcessedBarCloseTs: null,
         lastProcessedBarFingerprint: null,
         barsProcessedCount: 0,
-        lastEventSequence: 0,
+        generation: { increment: 1 },
         status: "NOT_STARTED",
         lastError: "Explicit --reseed reset requested; historical live events were retained.",
       },
@@ -481,6 +479,7 @@ async function processSnapshot(input: {
     pollFetchedAt: fetchedAt,
     tickTimestamp: snapshotData.tickTimestamp,
     startSequence: cursor.lastEventSequence,
+    generation: cursor.generation,
   });
   const status = result.state.activeSetup ? "ACTIVE" :
     result.status === "BOOTSTRAPPED" ? "BOOTSTRAPPED" : "RUNNING";
