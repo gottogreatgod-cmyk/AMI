@@ -236,9 +236,11 @@ model LiveOpportunityCursor {
   paramsHash              String
   engineVersion           String
   stateSchemaVersion      Int      @default(1)
+  generation              Int      @default(1)
   stateJson               String
   lastProcessedBarTs      Float?
   lastProcessedBarCloseTs Float?
+  lastProcessedBarFingerprint String?
   barsProcessedCount      Int      @default(0)
   lastEventSequence       Int      @default(0)
   status                  String   @default("NOT_STARTED")
