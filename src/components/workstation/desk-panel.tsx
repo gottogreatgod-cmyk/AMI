@@ -31,10 +31,12 @@ export interface ChartSlot {
 }
 
 
-const TFS: Timeframe[] = ["15m", "45m", "1h", "3h", "4h", "1d", "1w"];
+const TFS: Timeframe[] = ["1m", "15m", "45m", "1h", "3h", "4h", "1d", "1w"];
 
 function daysForTf(tf: Timeframe): number {
   switch (tf) {
+    case "1m":
+      return 1;
     case "15m":
     case "45m":
       return 10;
@@ -99,6 +101,7 @@ interface MonitorStatusResponse {
 }
 
 const DATASET_CHART_TIMEFRAME: Partial<Record<DatasetTimeframe, Timeframe>> = {
+  m1: "1m",
   m15: "15m",
   h1: "1h",
   h4: "4h",
