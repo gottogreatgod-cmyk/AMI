@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Bar } from "../types";
 
 export interface ReplaySourceIdentity {
@@ -191,7 +192,26 @@ function validateRequest<State>(request: ReplayRequest<State>): void {
 }
 
 function stableIdentity(parts: readonly string[]): string {
-  return parts.map((part) => encodeURIComponent(part)).join("|");
+  return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
+}
+
+function buildRunId<State>(request: ReplayRequest<State>): string {
+  return stableIdentity([
+    request.instrumentId,
+    request.timeframe,
+    request.source.provider,
+    request.source.sourceId,
+    request.source.dataClass,
+    request.source.revisionId,
+    request.source.revisionHash,
+    request.machine.detectorId,
+    request.machine.detectorVersion,
+    request.paramsHash,
+    request.engineVersion,
+    String(request.interval.fromTs),
+    String(request.interval.toTs),
+    String(request.warmupBars),
+  ]);
 }
 
 /**
@@ -212,18 +232,7 @@ export function runHistoricalReplay<State>(
   );
   if (firstRequestedIndex < 0) {
     return {
-      runId: stableIdentity([
-        request.instrumentId,
-        request.timeframe,
-        request.source.revisionId,
-        request.source.revisionHash,
-        request.machine.detectorId,
-        request.machine.detectorVersion,
-        request.paramsHash,
-        request.engineVersion,
-        String(request.interval.fromTs),
-        String(request.interval.toTs),
-      ]),
+      runId: buildRunId(request),
       instrumentId: request.instrumentId,
       timeframe: request.timeframe,
       source: request.source,
@@ -349,22 +358,7 @@ export function runHistoricalReplay<State>(
     }
   }
 
-  const runId = stableIdentity([
-    request.instrumentId,
-    request.timeframe,
-    request.source.provider,
-    request.source.sourceId,
-    request.source.dataClass,
-    request.source.revisionId,
-    request.source.revisionHash,
-    request.machine.detectorId,
-    request.machine.detectorVersion,
-    request.paramsHash,
-    request.engineVersion,
-    String(request.interval.fromTs),
-    String(request.interval.toTs),
-    String(request.warmupBars),
-  ]);
+  const runId = buildRunId(request);
 
   return {
     runId,
