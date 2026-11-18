@@ -7,7 +7,7 @@ describe("local workstation launch contract", () => {
     const source = await Bun.file("scripts/local/local-workstation.ts").text();
     expect(source).toContain('dbUrl.startsWith("file:")');
     expect(source).toContain("secret.length < 32");
-    expect(source).toContain('NEXTAUTH_URL=http://127.0.0.1:3000');
+    expect(source).toContain('NEXTAUTH_URL = "http://127.0.0.1:3000"');
   });
 
   test("runner binds the application to loopback and starts the polling supervisor", async () => {
