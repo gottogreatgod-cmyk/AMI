@@ -14,7 +14,9 @@ type LiveEvent = {
   discoveredAtTs: number;
   reason: string;
   evidence: Array<{ code: string; value?: string | number | boolean | null; sourceBarTs: number }>;
-  origin: "LIVE_MONITOR" | "LIVE_BOOTSTRAP";
+  origin: "LIVE_MONITOR" | "LIVE_BOOTSTRAP" | "LIVE_RECOVERY";
+  sourceRevisionId?: string | null;
+  sourceRevisionHash?: string | null;
   recordedAt: string;
 };
 
@@ -183,7 +185,7 @@ export function LiveOpportunityPanel() {
               <div key={event.id} className="grid grid-cols-[70px_70px_95px_minmax(0,1fr)] gap-2 items-start rounded bg-[#09121a] px-2 py-1 text-[8px]">
                 <span className="text-[#8193a3]">{stamp(event.discoveredAtTs)}</span>
                 <span className="font-bold text-[#9eb2c3]">{event.instrumentId.replace("-DUKA", "")}</span>
-                <span className={event.origin === "LIVE_MONITOR" ? "text-[#4bc39a]" : "text-[#d5a85c]"}>{event.origin}</span>
+                <span className={event.origin === "LIVE_MONITOR" ? "text-[#4bc39a]" : event.origin === "LIVE_RECOVERY" ? "text-[#9bb4c9]" : "text-[#d5a85c]"}>{event.origin}</span>
                 <span className="min-w-0 text-[#c7d4de]">{event.type} · {event.reason}</span>
               </div>
             ))}
@@ -191,7 +193,7 @@ export function LiveOpportunityPanel() {
         )}
       </div>
       <div className="px-2 pb-2 text-[8px] leading-relaxed text-[#687e90]">
-        A fresh quote does not guarantee a new closed candle. LIVE_BOOTSTRAP is never counted as an alert delivered at the event's historical market time. GAP_UNRECONCILED halts processing rather than skipping missing data. Feed polling and detector processing are separate workers.
+        A fresh quote does not guarantee a new closed candle. LIVE_BOOTSTRAP is never counted as an alert delivered at the event's historical market time. LIVE_RECOVERY is reconstructed from an exact verified dataset revision after an outage; it is not a real-time alert. GAP_UNRECONCILED halts processing rather than skipping missing data. Feed polling and detector processing are separate workers.
       </div>
     </section>
   );
