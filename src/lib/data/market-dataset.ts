@@ -3,6 +3,8 @@ import {
   type CanonicalInstrumentMetadata,
 } from "./market-instrument-contract";
 
+export const DATASET_IMPORTER_VERSION = 2 as const;
+
 export const DUKASCOPY_TIMEFRAMES = ["m1", "m5", "m15", "m30", "h1", "h4", "d1"] as const;
 export type DukascopyTimeframe = (typeof DUKASCOPY_TIMEFRAMES)[number];
 export type DukascopyPriceSide = "bid" | "ask";
@@ -101,7 +103,7 @@ export interface MarketDatasetManifest {
     rawSha256: string;
     normalizedSha256: string;
     importer: "ami-dukascopy-csv-importer";
-    importerVersion: 1;
+    importerVersion: typeof DATASET_IMPORTER_VERSION;
     importedAt: string;
     formingCutoffTs: number;
     dataUseClassification: string;
@@ -323,6 +325,7 @@ export async function createMarketDatasetManifest(args: {
     args.options.to,
     args.options.priceSide,
     "meta" + metadata.metadataVersion,
+    "importer" + DATASET_IMPORTER_VERSION,
     args.parsed.volumeAvailable ? args.options.volumeUnits : "no-volume",
     rawSha256.slice(0, 8),
     normalizedSha256.slice(0, 12),
@@ -375,7 +378,7 @@ export async function createMarketDatasetManifest(args: {
       rawSha256,
       normalizedSha256,
       importer: "ami-dukascopy-csv-importer",
-      importerVersion: 1,
+      importerVersion: DATASET_IMPORTER_VERSION,
       importedAt: args.importedAt ?? new Date().toISOString(),
       formingCutoffTs: args.options.asOfTs,
       dataUseClassification: metadata.dataUse.classification,
