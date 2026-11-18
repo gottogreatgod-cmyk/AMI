@@ -6,10 +6,11 @@
 // before targets; liquidation is modelled against leverage.
 // ---------------------------------------------------------------------------
 
-export const TIMEFRAMES = ["15m", "45m", "1h", "3h", "4h", "1d", "1w"] as const;
+export const TIMEFRAMES = ["1m", "15m", "45m", "1h", "3h", "4h", "1d", "1w"] as const;
 export type Timeframe = (typeof TIMEFRAMES)[number];
 
 export const TF_MS: Record<Timeframe, number> = {
+  "1m": 60_000,
   "15m": 15 * 60_000,
   "45m": 45 * 60_000,
   "1h": 60 * 60_000,
@@ -20,6 +21,7 @@ export const TF_MS: Record<Timeframe, number> = {
 };
 
 export const TF_RANK: Record<Timeframe, number> = {
+  "1m": 0,
   "15m": 1,
   "45m": 2,
   "1h": 3,
