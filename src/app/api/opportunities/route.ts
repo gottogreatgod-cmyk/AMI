@@ -48,6 +48,7 @@ const candidateSchema = z.object({
 
 function datasetTimeframe(value: string): string | null {
   const mapping: Record<string, string> = {
+    m1: "1m",
     m15: "15m",
     h1: "1h",
     h4: "4h",
