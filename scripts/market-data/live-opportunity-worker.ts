@@ -191,6 +191,7 @@ function buildEventRows(input: {
   pollFetchedAt: number;
   tickTimestamp: number | null;
   startSequence: number;
+  generation: number;
 }) {
   return input.events.map((event, index) => ({
     eventIdentity: hash([
@@ -482,7 +483,8 @@ async function processSnapshot(input: {
     generation: cursor.generation,
   });
   const status = result.state.activeSetup ? "ACTIVE" :
-    result.status === "BOOTSTRAPPED" ? "BOOTSTRAPPED" : "RUNNING";
+    result.status === "BOOTSTRAPPED" ? "BOOTSTRAPPED" :
+    result.status === "NO_BARS" ? "WAITING_FOR_CLOSED_BARS" : "RUNNING";
 
   await persistCursorAndEvents({
     cursorId: cursor.id,
@@ -563,10 +565,12 @@ async function run(input: ParsedArgs): Promise<void> {
     ordersEnabled: false,
   }) + "\n");
 
+  let reseedPending = input.reseed;
   try {
     do {
       try {
-        await processSnapshot(input);
+        await processSnapshot({ ...input, reseed: reseedPending });
+        reseedPending = false;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const cursor = await db.liveOpportunityCursor.findUnique({
