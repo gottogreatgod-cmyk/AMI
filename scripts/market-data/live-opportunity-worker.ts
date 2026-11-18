@@ -23,7 +23,6 @@ import {
   fingerprintForwardBar,
   processForwardClosedBars,
   type ForwardBar,
-  type ForwardEventDraft,
   type ForwardCursor,
 } from "../../src/lib/engine/live/live-opportunity-processor";
 
