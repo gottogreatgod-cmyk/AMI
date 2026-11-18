@@ -25,6 +25,7 @@ model User {
   runs         Run[]
   campaigns    Campaign[]
   opportunities Opportunity[]
+  replayRuns    ReplayRun[]
 }
 
 model Strategy {
@@ -147,4 +148,68 @@ model OpportunityEvent {
 
   @@unique([opportunityId, sequence])
   @@index([opportunityId, sequence])
+}
+
+
+// ---------------------------------------------------------------------------
+// Historical replay audit. Replay runs are immutable, user-scoped research
+// artifacts tied to exact source revisions and detector/engine provenance.
+// No broker, order, fill or position state is represented here.
+// ---------------------------------------------------------------------------
+
+model ReplayRun {
+  id                    String        @id @default(cuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runKey                String
+  instrumentId          String
+  timeframe             String
+  provider              String
+  sourceId              String
+  dataClass             String
+  revisionId            String
+  revisionHash          String
+  detectorId            String
+  detectorVersion       String
+  paramsHash            String
+  engineVersion         String
+  intervalFromTs        Float
+  intervalToTs          Float
+  warmupBarsRequested   Int
+  warmupBarsUsed        Int
+  inputBars             Int
+  evaluatedBars         Int
+  origin                String        @default("HISTORICAL_REPLAY")
+  createdAt             DateTime      @default(now())
+  events                ReplayEvent[]
+
+  @@unique([userId, runKey])
+  @@index([userId, createdAt])
+  @@index([userId, instrumentId, timeframe])
+  @@index([revisionId, detectorId, detectorVersion])
+}
+
+model ReplayEvent {
+  id                      String     @id @default(cuid())
+  replayRunId             String
+  replayRun               ReplayRun  @relation(fields: [replayRunId], references: [id], onDelete: Cascade)
+  eventIdentity           String
+  setupId                 String
+  eventKey                String
+  type                    String
+  instrumentId            String
+  timeframe               String
+  occurredAtTs            Float
+  discoveredAtTs          Float
+  confirmationBarTs       Float
+  confirmationBarCloseTs  Float
+  withinRequestedRange    Boolean
+  reason                  String
+  evidenceJson            String     @default("[]")
+  origin                  String     @default("HISTORICAL_REPLAY")
+  createdAt               DateTime   @default(now())
+
+  @@unique([replayRunId, eventIdentity])
+  @@index([replayRunId, discoveredAtTs])
+  @@index([setupId, occurredAtTs])
 }
