@@ -71,8 +71,8 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
     }
   }, [tab, focusSymbol, slots]);
 
-  const markets = usePolling<MarketsResponse>("/api/markets", 30_000);
-  const health = usePolling<FeedHealth>("/api/health", 30_000);
+  const markets = usePolling<MarketsResponse>("/api/markets", 30_000, refreshBust);
+  const health = usePolling<FeedHealth>("/api/health", 30_000, refreshBust);
 
   const marketRows = useMemo(() => markets.data?.markets ?? [], [markets.data]);
   const symbolOptions = useMemo(
@@ -173,7 +173,7 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
         </div>
         <div className="min-h-0 flex flex-col">
           {tab === "desk" && (
-            <DeskPanel slots={slots} onSlotsChange={setSlots} symbols={symbolOptions} focusSymbol={focusSymbol} onFocus={onFocus} />
+            <DeskPanel slots={slots} onSlotsChange={setSlots} symbols={symbolOptions} focusSymbol={focusSymbol} onFocus={onFocus} refreshKey={refreshBust} />
           )}
           {tab === "lab" && <LabPanel selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} />}
           {tab === "analyst" && <AnalystPanel focusSymbol={focusSymbol} />}
@@ -201,7 +201,6 @@ export function Workstation({ sessionEmail }: { sessionEmail: string | null }) {
           DATA: BINANCE SPOT · YAHOO (CME/COMEX CONTINUOUS, FX) · FOREXFACTORY CALENDAR
         </span>
       </footer>
-      <span className="hidden" data-refresh-bust={refreshBust} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   CrosshairMode,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type CandlestickData,
   type HistogramData,
   type UTCTimestamp,
@@ -17,6 +18,8 @@ import {
   type Time,
 } from "lightweight-charts";
 import type { Bar } from "@/lib/engine/types";
+import type { PriorUtcDateLevels } from "@/lib/engine/market-structure";
+import type { DisplacementZone } from "@/lib/engine/displacement-zones";
 
 export interface ChartMarker {
   time: number; // ms epoch
@@ -43,15 +46,36 @@ const THEME = {
   timeScale: { borderColor: "#1f303d", timeVisible: true, secondsVisible: false },
 };
 
+function normalizeBars(input: Bar[]): Bar[] {
+  const sorted = [...input]
+    .filter((bar) =>
+      [bar.t, bar.ct, bar.o, bar.h, bar.l, bar.c, bar.v].every(Number.isFinite) &&
+      bar.t > 0 && bar.ct >= bar.t && bar.o > 0 && bar.h > 0 && bar.l > 0 &&
+      bar.c > 0 && bar.v >= 0 &&
+      bar.h >= Math.max(bar.o, bar.c, bar.l) &&
+      bar.l <= Math.min(bar.o, bar.c, bar.h)
+    )
+    .sort((a, b) => a.t - b.t);
+
+  // Lightweight Charts requires strictly ascending, unique timestamps.
+  const byTime = new Map<number, Bar>();
+  for (const bar of sorted) byTime.set(bar.t, bar);
+  return [...byTime.values()];
+}
+
 export function MiniChart({
   bars,
   markers,
+  priorUtcDateLevels,
+  displacementZones,
   height,
   decimals = 2,
   chartId,
 }: {
   bars: Bar[];
   markers?: ChartMarker[];
+  priorUtcDateLevels?: PriorUtcDateLevels | null;
+  displacementZones?: DisplacementZone[];
   height?: number | string;
   decimals?: number;
   chartId?: string;
@@ -61,16 +85,20 @@ export function MiniChart({
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const markersRef = useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
+  const priorDateLinesRef = useRef<IPriceLine[]>([]);
+  const displacementZoneLinesRef = useRef<IPriceLine[]>([]);
+  const hasFitContentRef = useRef(false);
   const [ready, setReady] = useState(false);
 
   // create once
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const rect = el.getBoundingClientRect();
     const chart = createChart(el, {
       ...THEME,
-      width: el.clientWidth,
-      height: el.clientHeight,
+      width: Math.max(1, Math.floor(rect.width || el.clientWidth || 1)),
+      height: Math.max(1, Math.floor(rect.height || el.clientHeight || 160)),
     });
     const candle = chart.addSeries(CandlestickSeries, {
       upColor: "#4bc39a",
@@ -88,21 +116,63 @@ export function MiniChart({
     });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
     markersRef.current = createSeriesMarkers(candle, []);
+    hasFitContentRef.current = false;
     chartRef.current = chart;
     candleRef.current = candle;
     volumeRef.current = volume;
 
-    const ro = new ResizeObserver((entries) => {
-      const { width, height: h } = entries[0].target.getBoundingClientRect();
-      chart.applyOptions({ width: Math.floor(width), height: Math.floor(h) });
-    });
-    ro.observe(el);
+    const resize = (width: number, h: number) => {
+      if (width > 0 && h > 0) {
+        chart.applyOptions({ width: Math.max(1, Math.floor(width)), height: Math.max(1, Math.floor(h)) });
+      }
+    };
+    let ro: ResizeObserver | null = null;
+    let fallbackCleanup: (() => void) | null = null;
+    const onWindowResize = () => {
+      const bounds = el.getBoundingClientRect();
+      resize(bounds.width, bounds.height);
+    };
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver((entries) => {
+        const bounds = entries[0]?.contentRect;
+        if (bounds) resize(bounds.width, bounds.height);
+      });
+      ro.observe(el);
+    } else {
+      window.addEventListener("resize", onWindowResize);
+      fallbackCleanup = () => window.removeEventListener("resize", onWindowResize);
+    }
     // notify the data effect after the chart exists (deferred — keeps the
     // effect body free of synchronous setState)
-    queueMicrotask(() => setReady(true));
+    let active = true;
+    queueMicrotask(() => {
+      if (active) setReady(true);
+    });
     return () => {
-      ro.disconnect();
+      active = false;
+      ro?.disconnect();
+      fallbackCleanup?.();
+      // Remove chart-owned price lines before destroying the chart API. The
+      // dedicated overlay effect also removes them on updates; this guard
+      // makes teardown order safe during unmount or fast panel switching.
+      for (const line of priorDateLinesRef.current) {
+        try {
+          candle.removePriceLine(line);
+        } catch {
+          // The chart may already be in teardown; never block chart cleanup.
+        }
+      }
+      priorDateLinesRef.current = [];
+      for (const line of displacementZoneLinesRef.current) {
+        try {
+          candle.removePriceLine(line);
+        } catch {
+          // Chart teardown must not be blocked by an already-removed line.
+        }
+      }
+      displacementZoneLinesRef.current = [];
       chart.remove();
+      hasFitContentRef.current = false;
       chartRef.current = null;
       candleRef.current = null;
       volumeRef.current = null;
@@ -113,25 +183,34 @@ export function MiniChart({
   useEffect(() => {
     const candle = candleRef.current;
     const volume = volumeRef.current;
-    if (!candle || !volume || bars.length === 0) return;
-    const candleData: CandlestickData[] = bars.map((b) => ({
+    if (!candle || !volume || !ready) return;
+    const normalized = normalizeBars(bars);
+    const candleData: CandlestickData[] = normalized.map((b) => ({
       time: (b.t / 1000) as UTCTimestamp,
       open: b.o,
       high: b.h,
       low: b.l,
       close: b.c,
     }));
-    const volumeData: HistogramData[] = bars.map((b) => ({
+    const volumeData: HistogramData[] = normalized.map((b) => ({
       time: (b.t / 1000) as UTCTimestamp,
       value: b.v,
       color: b.c >= b.o ? "#4bc39a55" : "#ef777d55",
     }));
+    // Always clear as well as replace: empty/error responses must not leave
+    // another symbol's old candles rendered in this chart.
     candle.setData(candleData);
     volume.setData(volumeData);
-    chartRef.current?.timeScale().fitContent();
+    if (candleData.length > 0 && !hasFitContentRef.current) {
+      chartRef.current?.timeScale().fitContent();
+      hasFitContentRef.current = true;
+    }
+    if (candleData.length === 0) hasFitContentRef.current = false;
 
     if (markers && markers.length > 0 && markersRef.current) {
-      const sorted = [...markers].sort((a, b) => a.time - b.time);
+      const sorted = [...markers]
+        .filter((marker) => Number.isFinite(marker.time))
+        .sort((a, b) => a.time - b.time);
       const seriesMarkers: SeriesMarker<Time>[] = sorted.map((m) => ({
         time: (m.time / 1000) as UTCTimestamp,
         position: m.position,
@@ -145,12 +224,84 @@ export function MiniChart({
     }
   }, [bars, markers, ready]);
 
+  useEffect(() => {
+    const candle = candleRef.current;
+    if (!candle || !ready) return;
+
+    for (const line of priorDateLinesRef.current) candle.removePriceLine(line);
+    priorDateLinesRef.current = [];
+
+    if (priorUtcDateLevels) {
+      const highLine = candle.createPriceLine({
+        price: priorUtcDateLevels.high,
+        color: "#d5a85c",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "PRIOR UTC HIGH",
+      });
+      const lowLine = candle.createPriceLine({
+        price: priorUtcDateLevels.low,
+        color: "#7299c7",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "PRIOR UTC LOW",
+      });
+      priorDateLinesRef.current = [highLine, lowLine];
+    }
+
+    return () => {
+      for (const line of priorDateLinesRef.current) candle.removePriceLine(line);
+      priorDateLinesRef.current = [];
+    };
+  }, [priorUtcDateLevels, ready]);
+
+  useEffect(() => {
+    const candle = candleRef.current;
+    if (!candle || !ready) return;
+
+    for (const line of displacementZoneLinesRef.current) candle.removePriceLine(line);
+    displacementZoneLinesRef.current = [];
+
+    const lines: IPriceLine[] = [];
+    for (const zone of displacementZones ?? []) {
+      const isDemand = zone.direction === "DEMAND";
+      const color = isDemand ? "#4baf91" : "#d87979";
+      const status = zone.status === "TESTED" ? "TESTED" : "ACTIVE";
+      lines.push(
+        candle.createPriceLine({
+          price: zone.upper,
+          color,
+          lineWidth: 1,
+          lineStyle: 3,
+          axisLabelVisible: true,
+          title: zone.direction + " " + status + " TOP",
+        }),
+        candle.createPriceLine({
+          price: zone.lower,
+          color,
+          lineWidth: 1,
+          lineStyle: 3,
+          axisLabelVisible: true,
+          title: zone.direction + " " + status + " BASE",
+        })
+      );
+    }
+    displacementZoneLinesRef.current = lines;
+
+    return () => {
+      for (const line of displacementZoneLinesRef.current) candle.removePriceLine(line);
+      displacementZoneLinesRef.current = [];
+    };
+  }, [displacementZones, ready]);
+
   return (
-    <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"}>
+    <div className="relative w-full h-full min-h-[160px]" data-chart={chartId ?? "mini"} style={height ? { height } : undefined}>
       <div ref={containerRef} className="absolute inset-0" />
       {bars.length === 0 && (
-        <div className="absolute inset-0 grid place-items-center text-[10px] text-[#687e90]">
-          loading closed bars…
+        <div className="absolute inset-0 grid place-items-center text-[10px] text-[#687e90] pointer-events-none">
+          waiting for closed bars…
         </div>
       )}
     </div>

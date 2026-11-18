@@ -1,61 +1,100 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
 // ---------------------------------------------------------------------------
 // Workstation shared hooks & formatters
 // ---------------------------------------------------------------------------
 
-export function usePolling<T>(url: string | null, intervalMs: number) {
+export function usePolling<T>(url: string | null, intervalMs: number, refreshKey = 0) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const urlRef = useRef(url);
-  urlRef.current = url;
+  const [localRefresh, setLocalRefresh] = useState(0);
+  const refresh = useCallback(() => setLocalRefresh((value) => value + 1), []);
 
   useEffect(() => {
     let alive = true;
-    let timer: ReturnType<typeof setTimeout>;
+    let authExpired = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let activeController: AbortController | null = null;
+
+    if (!url) {
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    const requestUrl = url;
+
+    setLoading(true);
 
     async function tick() {
-      const u = urlRef.current;
-      if (!u) {
-        setLoading(false);
+      if (!alive || authExpired) return;
+      if (document.visibilityState === "hidden") {
+        timer = setTimeout(() => void tick(), intervalMs);
         return;
       }
+
+      const controller = new AbortController();
+      activeController = controller;
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+
       try {
-        const res = await fetch(u, { cache: "no-store" });
-        if (res.status === 401) {
+        const response = await fetch(requestUrl, { cache: "no-store", signal: controller.signal });
+        if (response.status === 401) {
+          authExpired = true;
           if (alive) setError("Session expired — reload to sign in again.");
-          setLoading(false);
           return;
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as T;
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const json = (await response.json()) as T;
         if (alive) {
           setData(json);
           setError(null);
         }
-      } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : String(e));
-      } finally {
+      } catch (cause) {
         if (alive) {
-          setLoading(false);
-          timer = setTimeout(tick, intervalMs);
+          const message = controller.signal.aborted
+            ? "Request timed out after 15 seconds."
+            : cause instanceof Error
+              ? cause.message
+              : String(cause);
+          setError(message);
+        }
+      } finally {
+        clearTimeout(timeout);
+        if (activeController === controller) {
+          activeController = null;
+          if (alive) {
+            setLoading(false);
+            if (!authExpired) timer = setTimeout(() => void tick(), intervalMs);
+          }
         }
       }
     }
-    tick();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible" || !alive || authExpired) return;
+      if (timer) clearTimeout(timer);
+      activeController?.abort();
+      void tick();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    void tick();
+
     return () => {
       alive = false;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
+      activeController?.abort();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [url, intervalMs]);
+  }, [url, intervalMs, refreshKey, localRefresh]);
 
-  return { data, error, loading, refresh: () => setLoading(true) };
+  return { data, error, loading, refresh };
 }
-
 export function useAuthGate() {
   const { data: session, status } = useSession();
   return { session, status, ready: status !== "loading" };
