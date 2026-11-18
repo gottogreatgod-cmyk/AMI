@@ -380,6 +380,11 @@ function ChartCard({
             </span>
           </>
         )}
+        {liveFeedMatches && liveData?.state === "FRESH" && liveData.tick && (
+          <span className="text-[#4bc39a]">
+            DUKA TICK · BID {fmtPrice(liveData.tick.bid, 2)} / ASK {fmtPrice(liveData.tick.ask, 2)} · SPR {fmtPrice(liveData.tick.spread, 2)}
+          </span>
+        )}
         {loading && !dataMatchesSelection && <span>loading…</span>}
       </div>
       <div className="flex-1 min-h-0 px-1 pb-1">
