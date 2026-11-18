@@ -167,7 +167,6 @@ export function DayReviewPanel() {
   const [bars, setBars] = useState<CandleResponse["bars"]>([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
-  const [dataNote, setDataNote] = useState<string | null>(null);
 
   const reloadCatalog = useCallback(async () => {
     setCatalogLoading(true);
@@ -178,7 +177,7 @@ export function DayReviewPanel() {
       if (!response.ok) throw new Error(data.error ?? "Unable to load local datasets.");
       setCatalog(data);
       const usable = data.datasets
-        .filter((item) => item.timeframe === "m1" && item.qualityStatus !== "REJECTED")
+        .filter((item) => item.timeframe === "m1" && item.qualityStatus === "PASS")
         .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
       setSelectedDatasetId((current) =>
         usable.some((item) => item.datasetId === current)
@@ -204,6 +203,11 @@ export function DayReviewPanel() {
     [catalog, allowReview]
   );
   const selectedDataset = datasets.find((item) => item.datasetId === selectedDatasetId) ?? null;
+  useEffect(() => {
+    if (!selectedDatasetId && datasets.length > 0) {
+      setSelectedDatasetId(datasets[0].datasetId);
+    }
+  }, [selectedDatasetId, datasets]);
   const fromTs = Date.parse(date + "T00:00:00.000Z");
   const toTs = fromTs + UTC_DAY_MS - 1;
   const validDate = Number.isFinite(fromTs) && fromTs > 0;
@@ -242,7 +246,6 @@ export function DayReviewPanel() {
         const data = await response.json() as CandleResponse;
         if (!response.ok) throw new Error(data.message ?? data.error ?? "Unable to load chart candles.");
         setBars(data.bars ?? []);
-        setDataNote(data.quality?.note ?? null);
       })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
@@ -285,33 +288,32 @@ export function DayReviewPanel() {
     setReplayLoading(true);
     setReplayError(null);
     setResult(null);
-    const response = await fetch("/api/replay", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-      body: JSON.stringify({
-        datasetId: selectedDataset.datasetId,
-        fromTs,
-        toTs,
-        warmupBars,
-        allowReview,
-        detector: {
-          leftBars: 3,
-          rightBars: 3,
-          maxBarsAfterBreak: 12,
-          maxBarsAfterRetest: 8,
-        },
-      }),
-    });
-
     try {
+      const response = await fetch("/api/replay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          datasetId: selectedDataset.datasetId,
+          fromTs,
+          toTs,
+          warmupBars,
+          allowReview,
+          detector: {
+            leftBars: 3,
+            rightBars: 3,
+            maxBarsAfterBreak: 12,
+            maxBarsAfterRetest: 8,
+          },
+        }),
+      });
+
       const data = await response.json() as ReplayApiResponse;
       if (!response.ok || !data.replay) {
         const issueText = data.issues?.map((issue) => issue.path.join(".") + ": " + issue.message).join("; ");
         throw new Error([data.error, data.message, issueText].filter(Boolean).join(" · ") || "Replay failed.");
       }
       setResult(data.replay);
-      setDataNote((data.dataLimitations ?? []).join(" "));
     } catch (error) {
       setReplayError(error instanceof Error ? error.message : String(error));
     } finally {
