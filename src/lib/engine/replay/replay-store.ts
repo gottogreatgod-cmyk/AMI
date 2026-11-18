@@ -13,7 +13,7 @@ export class ReplayStoreError extends Error {
 }
 
 type ReplayRunRow = Prisma.ReplayRunGetPayload<{
-  include: { events: { orderBy: { discoveredAtTs: "asc" } } };
+  include: { events: { orderBy: { sequence: "asc" } } };
 }>;
 
 export interface PersistedReplayResult {
@@ -89,7 +89,7 @@ async function findByRunKey(
 ): Promise<ReplayRunRow | null> {
   return db.replayRun.findUnique({
     where: { userId_runKey: { userId, runKey } },
-    include: { events: { orderBy: { discoveredAtTs: "asc" } } },
+    include: { events: { orderBy: { sequence: "asc" } } },
   });
 }
 
@@ -137,8 +137,9 @@ export async function persistHistoricalReplay(
         evaluatedBars: result.evaluatedBars,
         origin: result.origin,
         events: {
-          create: result.events.map((event) => ({
+          create: result.events.map((event, sequence) => ({
             eventIdentity: event.id,
+            sequence,
             setupId: event.setupId,
             eventKey: event.eventKey,
             type: event.type,
