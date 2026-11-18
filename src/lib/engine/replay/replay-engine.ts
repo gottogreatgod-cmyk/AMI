@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Bar } from "../types";
 
+export const REPLAY_ENGINE_VERSION = "ami-replay-engine-1.0.0";
+
 export interface ReplaySourceIdentity {
   provider: string;
   sourceId: string;
