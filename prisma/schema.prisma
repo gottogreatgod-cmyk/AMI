@@ -241,6 +241,8 @@ model LiveOpportunityCursor {
   lastProcessedBarTs      Float?
   lastProcessedBarCloseTs Float?
   lastProcessedBarFingerprint String?
+  lastRecoveryRevisionId  String?
+  lastRecoveryRevisionHash String?
   barsProcessedCount      Int      @default(0)
   lastEventSequence       Int      @default(0)
   status                  String   @default("NOT_STARTED")
@@ -274,6 +276,8 @@ model LiveOpportunityEvent {
   confirmationBarTs     Float
   confirmationBarCloseTs Float
   sourceBarFingerprint  String
+  sourceRevisionId      String?
+  sourceRevisionHash    String?
   sourcePollFetchedAt   Float
   sourceTickTimestamp   Float?
   reason                String
