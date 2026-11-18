@@ -90,6 +90,8 @@ const TARGETS: InstrumentTarget[] = [
 let stopping = false;
 let supervisorStartedAt = Date.now();
 let supervisorState: SupervisorSnapshot["state"] = "RUNNING";
+let snapshotWriteQueue: Promise<void> = Promise.resolve();
+let shutdownPromise: Promise<void> | null = null;
 
 const workers: WorkerRuntime[] = TARGETS.map((target) => ({
   target,
@@ -118,24 +120,28 @@ function isProcessAlive(pid: number): boolean {
 }
 
 async function writeSnapshot(): Promise<void> {
-  const snapshot: SupervisorSnapshot = {
-    schemaVersion: 1,
-    state: supervisorState,
-    pid: process.pid,
-    startedAt: supervisorStartedAt,
-    heartbeatAt: Date.now(),
-    feedMode: "EXPERIMENTAL_POLLING",
-    ordersEnabled: false,
-    workers: workers.map(({ child: _child, restartTimestamps, ...worker }) => ({
-      ...worker,
-      recentRestartCount: restartTimestamps.filter((timestamp) =>
-        timestamp > Date.now() - DEFAULT_RESTART_POLICY.windowMs
-      ).length,
-    })),
-  };
-  const tempPath = STATE_PATH + "." + process.pid + ".tmp";
-  await Bun.write(tempPath, JSON.stringify(snapshot, null, 2) + "\n");
-  await rename(tempPath, STATE_PATH);
+  const operation = snapshotWriteQueue.then(async () => {
+    const snapshot: SupervisorSnapshot = {
+      schemaVersion: 1,
+      state: supervisorState,
+      pid: process.pid,
+      startedAt: supervisorStartedAt,
+      heartbeatAt: Date.now(),
+      feedMode: "EXPERIMENTAL_POLLING",
+      ordersEnabled: false,
+      workers: workers.map(({ child: _child, restartTimestamps, ...worker }) => ({
+        ...worker,
+        recentRestartCount: restartTimestamps.filter((timestamp) =>
+          timestamp > Date.now() - DEFAULT_RESTART_POLICY.windowMs
+        ).length,
+      })),
+    };
+    const tempPath = STATE_PATH + "." + process.pid + ".tmp";
+    await Bun.write(tempPath, JSON.stringify(snapshot, null, 2) + "\n");
+    await rename(tempPath, STATE_PATH);
+  });
+  snapshotWriteQueue = operation.catch(() => undefined);
+  return operation;
 }
 
 function recordExit(worker: WorkerRuntime, code: number): void {
@@ -241,7 +247,13 @@ async function releaseLock(): Promise<void> {
   }
 }
 
-async function shutdown(): Promise<void> {
+function shutdown(): Promise<void> {
+  if (shutdownPromise) return shutdownPromise;
+  shutdownPromise = performShutdown();
+  return shutdownPromise;
+}
+
+async function performShutdown(): Promise<void> {
   if (stopping && supervisorState === "STOPPED") return;
   stopping = true;
   supervisorState = "STOPPING";
