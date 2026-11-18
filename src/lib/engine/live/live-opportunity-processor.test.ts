@@ -155,6 +155,35 @@ describe("forward live closed-bar processor", () => {
     expect(result.status).toBe("GAP_UNRECONCILED");
   });
 
+
+  test("labels bars replayed from a recovered history as LIVE_RECOVERY, not LIVE_MONITOR", () => {
+    const bars = makeBars(8);
+    const seeded = processForwardClosedBars({
+      cursor: emptyCursor(), bars: bars.slice(0, 7), machine: machine(),
+      instrumentId: "XAUUSD-DUKA", timeframe: "m1", timeframeMs: 60_000,
+    });
+    const recoveryBar = bars[7];
+    const recovered = processForwardClosedBars({
+      cursor: {
+        state: seeded.state,
+        barsProcessedCount: seeded.barsProcessedCount,
+        lastProcessedBarTs: seeded.lastProcessedBarTs,
+        lastProcessedBarCloseTs: seeded.lastProcessedBarCloseTs,
+        lastProcessedBarFingerprint: seeded.lastProcessedBarFingerprint,
+      },
+      bars,
+      machine: machine(),
+      instrumentId: "XAUUSD-DUKA",
+      timeframe: "m1",
+      timeframeMs: 60_000,
+      processingOrigin: "LIVE_RECOVERY",
+    });
+
+    expect(recovered.status).toBe("PROCESSED");
+    expect(recovered.lastProcessedBarTs).toBe(recoveryBar.t);
+    expect(recovered.events.every((event) => event.origin === "LIVE_RECOVERY")).toBe(true);
+  });
+
   test("fingerprint is deterministic for exact bar content", () => {
     const bar = makeBars(1)[0];
     expect(fingerprintForwardBar(bar)).toBe(fingerprintForwardBar({ ...bar }));
