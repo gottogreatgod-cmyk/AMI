@@ -451,7 +451,7 @@ async function processSnapshot(input: {
     instrumentId: input.instrumentId,
     timeframe: TIMEFRAME,
     timeframeMs: TIMEFRAME_MS,
-    maxBootstrapBars: 8,
+    maxBootstrapBars: 64,
   });
 
   if (result.status === "GAP_UNRECONCILED" || result.status === "INVALID_BAR") {
