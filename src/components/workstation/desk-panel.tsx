@@ -108,6 +108,25 @@ const DATASET_CHART_TIMEFRAME: Partial<Record<DatasetTimeframe, Timeframe>> = {
   d1: "1d",
 };
 
+interface LiveBarsResponse {
+  instrumentId: string;
+  priceSide: "bid" | "ask";
+  timeframe: "m1";
+  feedMode: "EXPERIMENTAL_POLLING";
+  state: "FRESH" | "STALE" | "NO_TICK" | "ERROR" | "NOT_STARTED" | "INVALID_SNAPSHOT";
+  bars: Array<Bar & { forming?: boolean }>;
+  tick: {
+    timestamp: number | null;
+    bid: number | null;
+    ask: number | null;
+    spread: number | null;
+    spreadBps: number | null;
+  } | null;
+  health?: { tickAgeMs: number | null; snapshotWriteAgeMs: number | null };
+  lastError?: string | null;
+  pollIntervalSeconds?: number | null;
+}
+
 interface CandlesResponse {
   symbol: string;
   tf: Timeframe;
@@ -184,6 +203,15 @@ function ChartCard({
     selectedDataset ? 86_400_000 : 60_000,
     refreshKey
   );
+  const liveBarsUrl = selectedDataset?.timeframe === "m1" && selectedDataset.toTs !== null &&
+    Date.now() - selectedDataset.toTs <= 48 * 60 * 60_000
+      ? `/api/market-data/live-bars?instrumentId=${encodeURIComponent(selectedDataset.instrumentId)}&priceSide=${selectedDataset.priceSide}`
+      : null;
+  const { data: liveData, error: liveError } = usePolling<LiveBarsResponse>(
+    liveBarsUrl,
+    15_000,
+    refreshKey
+  );
   const dataMatchesSelection = Boolean(
     data &&
     data.symbol === chartSymbol &&
@@ -192,7 +220,27 @@ function ChartCard({
       ? data.dataset?.datasetId === selectedDataset.datasetId
       : data.dataset === undefined)
   );
-  const visibleBars = dataMatchesSelection ? data?.bars ?? [] : [];
+  const historicalBars = dataMatchesSelection ? data?.bars ?? [] : [];
+  const liveFeedMatches = Boolean(
+    selectedDataset &&
+    liveData &&
+    liveData.instrumentId === selectedDataset.instrumentId &&
+    liveData.priceSide === selectedDataset.priceSide &&
+    liveData.timeframe === selectedDataset.timeframe
+  );
+  const visibleBars = useMemo(() => {
+    if (!liveFeedMatches || liveData?.state !== "FRESH" || liveData.bars.length === 0) {
+      return historicalBars;
+    }
+    const byTimestamp = new Map<number, Bar>();
+    for (const bar of historicalBars) byTimestamp.set(bar.t, bar);
+    for (const bar of liveData.bars) {
+      byTimestamp.set(bar.t, { ...bar, v: bar.v ?? 0 });
+    }
+    return [...byTimestamp.values()]
+      .sort((a, b) => a.t - b.t)
+      .slice(-1200);
+  }, [historicalBars, liveData, liveFeedMatches]);
   const last = visibleBars[visibleBars.length - 1];
   const q = dataMatchesSelection ? data?.quality : undefined;
   const chartDecimals = selectedDataset ? 2 : priceDecimals;
@@ -355,7 +403,13 @@ function ChartCard({
               ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars" +
                 (data?.dataset?.operationPolicy?.strategyBacktest.allowed ? " · BACKTEST ELIGIBLE" : " · CHART ONLY") +
                 (showPriorUtcDate ? " · PRIOR UTC " + (priorUtcDateLabel ?? "N/A") : "") +
-                (showDisplacementZones ? " · ZONES " + displacementZones.map((zone) => zone.direction[0] + ":" + zone.status).join(" / ") : "")
+                (showDisplacementZones ? " · ZONES " + displacementZones.map((zone) => zone.direction[0] + ":" + zone.status).join(" / ") : "") +
+                (liveBarsUrl
+                  ? " · LIVE POLL " + (liveFeedMatches ? liveData?.state ?? "WAIT" : "WAIT") +
+                    (liveData?.health?.tickAgeMs != null ? " · TICK " + Math.round(liveData.health.tickAgeMs / 1000) + "s" : "") +
+                    (liveError ? " · " + liveError : "") +
+                    (liveData?.lastError ? " · " + liveData.lastError : "")
+                  : "")
               : q
               ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
               : loading
