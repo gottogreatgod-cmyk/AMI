@@ -32,8 +32,8 @@ export interface ReplayContext {
   bar: Bar;
   /** Zero-based absolute index in the validated input series. */
   barIndex: number;
-  /** Only bars through the current decision bar; future bars are never exposed. */
-  barsThroughDecision: readonly Bar[];
+  /** Number of earlier bars processed into detector state; no future data is exposed. */
+  barsProcessedBeforeDecision: number;
   /** Whether this decision bar belongs to the requested visible review interval. */
   inRequestedRange: boolean;
 }
@@ -264,7 +264,7 @@ export function runHistoricalReplay<State>(
       timeframe: request.timeframe,
       bar,
       barIndex,
-      barsThroughDecision: request.bars.slice(0, barIndex + 1),
+      barsProcessedBeforeDecision: barIndex,
       inRequestedRange,
     });
     state = step.state;
@@ -305,7 +305,11 @@ export function runHistoricalReplay<State>(
       const setupId = stableIdentity([
         request.instrumentId,
         request.timeframe,
+        request.source.provider,
+        request.source.sourceId,
+        request.source.dataClass,
         request.source.revisionId,
+        request.source.revisionHash,
         request.machine.detectorId,
         request.machine.detectorVersion,
         draft.setupKey,
@@ -345,6 +349,9 @@ export function runHistoricalReplay<State>(
   const runId = stableIdentity([
     request.instrumentId,
     request.timeframe,
+    request.source.provider,
+    request.source.sourceId,
+    request.source.dataClass,
     request.source.revisionId,
     request.source.revisionHash,
     request.machine.detectorId,
