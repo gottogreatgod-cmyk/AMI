@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MiniChart, type ChartMarker } from "./mini-chart";
+import { LiveOpportunityPanel } from "./live-opportunity-panel";
 import { cn } from "@/lib/utils";
 
 type DatasetOption = {
@@ -336,6 +337,7 @@ export function DayReviewPanel() {
 
   return (
     <section className="panel flex flex-col min-h-0 min-w-0" aria-label="Historical day review">
+      <LiveOpportunityPanel />
       <div className="panel-head flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span>DAY REVIEW · HISTORICAL REPLAY</span>
