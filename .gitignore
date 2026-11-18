@@ -69,3 +69,7 @@ db/*.db
 # Local market history and normalized datasets (never commit raw provider data)
 /data/market-data/
 /.dukascopy-cache/
+# AMI local market archives, SQLite files and monitor/runtime state
+/db/
+*.sqlite
+*.sqlite3
