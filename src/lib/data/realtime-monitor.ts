@@ -198,3 +198,160 @@ export function classifyMonitorFreshness(
     ageMs,
   };
 }
+
+
+export type MonitorHealthState = "FRESH" | "STALE" | "NO_TICK" | "ERROR";
+
+export type MonitorHealthReason =
+  | "OK"
+  | "NO_PROVIDER_TICK"
+  | "PROVIDER_TICK_STALE"
+  | "POLL_WRITE_STALE"
+  | "LAST_POLL_FAILED"
+  | "INVALID_HEALTH_INPUT";
+
+export interface MonitorHealthInput {
+  /** The monitor snapshot file's filesystem mtime, not the provider event time. */
+  snapshotWrittenAt: number | null;
+  /** The time the provider request sequence completed successfully. */
+  snapshotFetchedAt: number | null;
+  /** Provider event time of the most recent two-sided tick. */
+  tickTimestamp: number | null;
+  timeframe: MonitorTimeframe | null;
+  pollSeconds: number | null;
+  lastError: string | null;
+  now?: number;
+}
+
+export interface MonitorHealth {
+  state: MonitorHealthState;
+  reason: MonitorHealthReason;
+  observedAt: number;
+  snapshotAgeMs: number | null;
+  tickAgeMs: number | null;
+  snapshotWriteAgeMs: number | null;
+  tickStaleAfterMs: number;
+  writerStaleAfterMs: number;
+  writerResponsive: boolean;
+}
+
+/**
+ * Re-evaluate persisted monitor data at read time.
+ *
+ * A snapshot's stored freshness describes the moment it was fetched; it must
+ * never be treated as a live freshness assertion later. We separately age:
+ * - the snapshot write time (is the poller still updating its file?);
+ * - the provider event time (how old is the latest market tick?).
+ *
+ * Polling is intentionally best-effort. This function does not infer whether
+ * the market is open: a stale/no-tick result may reflect a quiet or closed
+ * session because the instrument calendars are not yet certified.
+ */
+export function classifyMonitorHealth(input: MonitorHealthInput): MonitorHealth {
+  const now = input.now ?? Date.now();
+  const pollSeconds = input.pollSeconds ?? 60;
+  const timeframeMs = input.timeframe
+    ? MONITOR_TIMEFRAME_MS[input.timeframe]
+    : MONITOR_TIMEFRAME_MS.m1;
+
+  const tickStaleAfterMs = Math.max(2 * timeframeMs, 120_000);
+  const writerStaleAfterMs = Math.max(3 * pollSeconds * 1_000, 120_000);
+  const validNow = Number.isFinite(now);
+  const validWrite = input.snapshotWrittenAt !== null &&
+    Number.isFinite(input.snapshotWrittenAt) && input.snapshotWrittenAt > 0;
+  const validFetched = input.snapshotFetchedAt !== null &&
+    Number.isFinite(input.snapshotFetchedAt) && input.snapshotFetchedAt > 0;
+  const validTick = input.tickTimestamp !== null &&
+    Number.isFinite(input.tickTimestamp) && input.tickTimestamp > 0;
+
+  if (!validNow || !validWrite || !Number.isFinite(pollSeconds) || pollSeconds <= 0) {
+    return {
+      state: "ERROR",
+      reason: "INVALID_HEALTH_INPUT",
+      observedAt: Number.isFinite(now) ? now : Date.now(),
+      snapshotAgeMs: null,
+      tickAgeMs: null,
+      snapshotWriteAgeMs: null,
+      tickStaleAfterMs,
+      writerStaleAfterMs,
+      writerResponsive: false,
+    };
+  }
+
+  const snapshotWriteAgeMs = Math.max(0, now - input.snapshotWrittenAt!);
+  const snapshotAgeMs = validFetched
+    ? Math.max(0, now - input.snapshotFetchedAt!)
+    : null;
+  const tickAgeMs = validTick
+    ? Math.max(0, now - input.tickTimestamp!)
+    : null;
+  const writerResponsive = snapshotWriteAgeMs <= writerStaleAfterMs;
+
+  if (!writerResponsive) {
+    return {
+      state: "STALE",
+      reason: "POLL_WRITE_STALE",
+      observedAt: now,
+      snapshotAgeMs,
+      tickAgeMs,
+      snapshotWriteAgeMs,
+      tickStaleAfterMs,
+      writerStaleAfterMs,
+      writerResponsive: false,
+    };
+  }
+
+  if (input.lastError) {
+    return {
+      state: validTick ? "STALE" : "ERROR",
+      reason: "LAST_POLL_FAILED",
+      observedAt: now,
+      snapshotAgeMs,
+      tickAgeMs,
+      snapshotWriteAgeMs,
+      tickStaleAfterMs,
+      writerStaleAfterMs,
+      writerResponsive: true,
+    };
+  }
+
+  if (!validFetched || !validTick) {
+    return {
+      state: "NO_TICK",
+      reason: "NO_PROVIDER_TICK",
+      observedAt: now,
+      snapshotAgeMs,
+      tickAgeMs,
+      snapshotWriteAgeMs,
+      tickStaleAfterMs,
+      writerStaleAfterMs,
+      writerResponsive: true,
+    };
+  }
+
+  if (tickAgeMs! > tickStaleAfterMs) {
+    return {
+      state: "STALE",
+      reason: "PROVIDER_TICK_STALE",
+      observedAt: now,
+      snapshotAgeMs,
+      tickAgeMs,
+      snapshotWriteAgeMs,
+      tickStaleAfterMs,
+      writerStaleAfterMs,
+      writerResponsive: true,
+    };
+  }
+
+  return {
+    state: "FRESH",
+    reason: "OK",
+    observedAt: now,
+    snapshotAgeMs,
+    tickAgeMs,
+    snapshotWriteAgeMs,
+    tickStaleAfterMs,
+    writerStaleAfterMs,
+    writerResponsive: true,
+  };
+}
