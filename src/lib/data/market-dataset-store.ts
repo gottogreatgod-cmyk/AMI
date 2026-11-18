@@ -1,6 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
+  DATASET_IMPORTER_VERSION,
   DUKASCOPY_TIMEFRAME_MS,
   parseDukascopyCsv,
   serializeNormalizedBars,
@@ -217,11 +218,11 @@ function assertManifestIdentity(
     manifest.provenance.dataUseNote !== metadata.dataUse.note ||
     manifest.provenance.sourceTimezone !== "UTC" ||
     manifest.provenance.importer !== "ami-dukascopy-csv-importer" ||
-    manifest.provenance.importerVersion !== 1 ||
+    manifest.provenance.importerVersion !== DATASET_IMPORTER_VERSION ||
     manifest.quality.calendar !== metadata.session.calendar ||
     manifest.quality.calendarVerified !== metadata.session.hoursVerified ||
     manifest.quality.gapPolicy !== "REPORT_ONLY_NO_SYNTHETIC_BARS" ||
-    manifest.quality.gapThresholdMs !== DUKASCOPY_TIMEFRAME_MS[expectedTimeframe] * 2 ||
+    manifest.quality.gapThresholdMs !== DUKASCOPY_TIMEFRAME_MS[expectedTimeframe] ||
     (manifest.pricing.downloadedSide !== "bid" && manifest.pricing.downloadedSide !== "ask")
   ) {
     throw new DatasetStoreError(
@@ -367,6 +368,7 @@ export async function loadMarketDataset(
     manifest.requestedRange.toExclusive,
     manifest.pricing.downloadedSide,
     "meta" + manifest.instrument.metadataVersion,
+    "importer" + DATASET_IMPORTER_VERSION,
     manifest.volume.units ?? "no-volume",
     rawHash.slice(0, 8),
     normalizedHash.slice(0, 12),
