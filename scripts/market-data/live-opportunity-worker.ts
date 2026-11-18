@@ -44,6 +44,8 @@ const DETECTOR_PARAMS_HASH = createHash("sha256")
   }))
   .digest("hex");
 const ENGINE_VERSION = REPLAY_ENGINE_VERSION;
+const RECOVERY_RETRY_INTERVAL_MS = 60_000;
+let lastRecoveryAttemptAt = 0;
 
 type InstrumentId = keyof typeof INSTRUMENTS;
 type PriceSide = "bid" | "ask";
@@ -417,15 +419,6 @@ async function processSnapshot(input: {
         lastError: "Explicit --reseed reset requested; historical live events were retained.",
       },
     });
-  } else if (cursor.status === "GAP_UNRECONCILED") {
-    await updateCursorHealth(
-      cursor.id,
-      "GAP_UNRECONCILED",
-      cursor.lastError ?? "Manual reseed/reconciliation required.",
-      fetchedAt,
-      snapshotData.tickTimestamp
-    );
-    return;
   }
 
   if (cursor.stateSchemaVersion !== 1 ||
