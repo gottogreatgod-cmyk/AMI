@@ -2,7 +2,7 @@
   "program": "AMI Final Test Candidate",
   "version": "1.0",
   "status": "implementation_blueprint",
-  "branch": "ami/repair-p0-chart-and-signal-integrity",
+  "branch": "ami/ftc-next-integration-readiness",
   "operating_mode": [
     "market_monitor",
     "quant_research",
@@ -537,5 +537,18 @@
       "nqSampleCliSmoke": true,
       "realNqSampleImported": false
     }
+  },
+  "last_verified_snapshot": {
+    "date": "2026-11-18",
+    "source_branch": "ami/repair-p0-chart-and-signal-integrity",
+    "source_head": "ab2d51c03073847be40f85d7fecdf577cf7cf07a",
+    "pull_request": 1,
+    "latest_ci_run": 406,
+    "latest_ci_run_id": 44200139419,
+    "latest_ci_conclusion": "success",
+    "live_provider_validated": false,
+    "real_market_history_imported": false,
+    "browser_e2e_validated": false,
+    "live_order_routing_enabled": false
   }
 }
