@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
     const rawDays = Number(sp.get("days") ?? 30);
     const days = Number.isFinite(rawDays) ? Math.max(1, Math.min(Math.floor(rawDays), 400)) : 30;
     const datasetId = sp.get("datasetId");
+    const rawFromTs = sp.get("fromTs");
+    const rawToTs = sp.get("toTs");
 
     if (!TIMEFRAMES.includes(tf)) return badRequest(`unknown timeframe ${tf}`);
 
@@ -42,7 +44,20 @@ export async function GET(req: NextRequest) {
         return badRequest("datasetId timeframe does not match the requested chart timeframe");
       }
 
-      const sourceBars = loaded.bars;
+      let sourceBars = loaded.bars;
+      if (rawFromTs !== null || rawToTs !== null) {
+        const fromTs = rawFromTs === null ? Number.NaN : Number(rawFromTs);
+        const toTs = rawToTs === null ? Number.NaN : Number(rawToTs);
+        if (
+          !Number.isFinite(fromTs) ||
+          !Number.isFinite(toTs) ||
+          fromTs <= 0 ||
+          toTs < fromTs
+        ) {
+          return badRequest("fromTs and toTs must be supplied together as valid UTC epoch milliseconds with toTs >= fromTs");
+        }
+        sourceBars = sourceBars.filter((bar) => bar.t >= fromTs && bar.t <= toTs);
+      }
       const sliced = sourceBars.length > limit ? sourceBars.slice(sourceBars.length - limit) : sourceBars;
       const first = sliced[0];
       const last = sliced[sliced.length - 1];
@@ -63,7 +78,8 @@ export async function GET(req: NextRequest) {
         gapsDetected: loaded.manifest.quality.unclassifiedGaps,
         fetchedAt: Date.now(),
         note: "Verified local historical dataset; " + loaded.manifest.pricing.datasetPriceSide +
-          " quotes only. Not a live feed. Gap count is unclassified until session-calendar validation.",
+          " quotes only. Not a live feed. Gap count is for the full immutable revision and remains unclassified until session-calendar validation.",
+
         datasetId: loaded.manifest.datasetId,
         priceSide: loaded.manifest.pricing.datasetPriceSide,
         qualityStatus: loaded.manifest.quality.qualityStatus,
@@ -73,6 +89,9 @@ export async function GET(req: NextRequest) {
         tf,
         bars: sliced,
         quality,
+        requestedRange: rawFromTs !== null || rawToTs !== null
+          ? { fromTs: Number(rawFromTs), toTs: Number(rawToTs), timestampMeaning: "UTC_BAR_OPEN_TIME_INCLUSIVE" }
+          : null,
         dataset: {
           datasetId: loaded.manifest.datasetId,
           dataClass: loaded.manifest.instrument.dataClass,
