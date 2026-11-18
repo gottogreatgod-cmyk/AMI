@@ -48,19 +48,30 @@ export function fingerprintForwardBar(bar: ForwardBar): string {
   ])).digest("hex");
 }
 
-function normalizeClosedBars(input: readonly ForwardBar[]): ForwardBar[] {
-  return input
-    .filter((bar) =>
-      bar.forming !== true &&
-      [bar.t, bar.ct, bar.o, bar.h, bar.l, bar.c, bar.v].every(Number.isFinite) &&
-      bar.t > 0 &&
-      bar.ct >= bar.t &&
-      bar.o > 0 && bar.h > 0 && bar.l > 0 && bar.c > 0 && bar.v >= 0 &&
-      bar.h >= Math.max(bar.o, bar.c, bar.l) &&
-      bar.l <= Math.min(bar.o, bar.c, bar.h)
-    )
-    .slice()
-    .sort((a, b) => a.t - b.t);
+function normalizeClosedBars(input: readonly ForwardBar[]): {
+  bars: ForwardBar[];
+  error: string | null;
+} {
+  const bars = input.filter((bar) => bar.forming !== true).slice();
+  for (let index = 0; index < bars.length; index++) {
+    const bar = bars[index];
+    if (
+      ![bar.t, bar.ct, bar.o, bar.h, bar.l, bar.c, bar.v].every(Number.isFinite) ||
+      bar.t <= 0 || bar.ct < bar.t ||
+      bar.o <= 0 || bar.h <= 0 || bar.l <= 0 || bar.c <= 0 || bar.v < 0 ||
+      bar.h < Math.max(bar.o, bar.c, bar.l) ||
+      bar.l > Math.min(bar.o, bar.c, bar.h)
+    ) {
+      return { bars: [], error: "An invalid closed candle was received at index " + index + "." };
+    }
+    if (index > 0 && (
+      bar.t <= bars[index - 1].t ||
+      bar.t <= bars[index - 1].ct
+    )) {
+      return { bars: [], error: "Closed candles are duplicated, out of order or overlapping." };
+    }
+  }
+  return { bars, error: null };
 }
 
 function invalidResult<State>(
@@ -99,17 +110,16 @@ export function processForwardClosedBars<State>(input: {
   maxBootstrapBars?: number;
 }): ForwardBatchResult<State> {
   const initialState = input.machine.createInitialState();
-  const bars = normalizeClosedBars(input.bars);
+  const normalized = normalizeClosedBars(input.bars);
 
   if (!Number.isInteger(input.timeframeMs) || input.timeframeMs <= 0) {
     return invalidResult(input.cursor, initialState, "Invalid timeframe duration.");
   }
 
-  for (let i = 1; i < bars.length; i++) {
-    if (bars[i].t <= bars[i - 1].t || bars[i].t <= bars[i - 1].ct) {
-      return invalidResult(input.cursor, initialState, "Closed bars are duplicated, overlapping or out of order.");
-    }
+  if (normalized.error) {
+    return invalidResult(input.cursor, initialState, normalized.error);
   }
+  const bars = normalized.bars;
 
   const isNewCursor = input.cursor.lastProcessedBarTs === null;
   const state = (input.cursor.state as State | undefined) ?? initialState;
@@ -187,9 +197,14 @@ export function processForwardClosedBars<State>(input: {
     };
   }
 
-  const nextBars = watermarkBar
-    ? bars.filter((bar) => bar.t > lastTs)
-    : bars.filter((bar) => bar.t > lastTs);
+  if (bars[bars.length - 1].t < lastTs) {
+    return {
+      ...invalidResult(input.cursor, initialState, "Provider snapshot is older than the persisted closed-bar watermark."),
+      status: "GAP_UNRECONCILED",
+    };
+  }
+
+  const nextBars = bars.filter((bar) => bar.t > lastTs);
 
   if (nextBars.length === 0) {
     return {
