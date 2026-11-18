@@ -204,8 +204,8 @@ export function DayReviewPanel() {
   );
   const selectedDataset = datasets.find((item) => item.datasetId === selectedDatasetId) ?? null;
   useEffect(() => {
-    if (!selectedDatasetId && datasets.length > 0) {
-      setSelectedDatasetId(datasets[0].datasetId);
+    if (!datasets.some((item) => item.datasetId === selectedDatasetId)) {
+      setSelectedDatasetId(datasets[0]?.datasetId ?? "");
     }
   }, [selectedDatasetId, datasets]);
   const fromTs = Date.parse(date + "T00:00:00.000Z");
@@ -224,6 +224,7 @@ export function DayReviewPanel() {
     if (!selectedDataset || !validDate) {
       setBars([]);
       setChartError(null);
+      setChartLoading(false);
       return;
     }
     const controller = new AbortController();
