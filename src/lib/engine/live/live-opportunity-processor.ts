@@ -129,7 +129,14 @@ export function processForwardClosedBars<State>(input: {
   }
 
   if (isNewCursor) {
-    const seedBars = bars.slice(-Math.max(1, input.maxBootstrapBars ?? 8));
+    const recentBars = bars.slice(-Math.max(1, input.maxBootstrapBars ?? 8));
+    let seedStart = 0;
+    for (let index = 1; index < recentBars.length; index++) {
+      if (recentBars[index].t !== recentBars[index - 1].t + input.timeframeMs) {
+        seedStart = index;
+      }
+    }
+    const seedBars = recentBars.slice(seedStart);
     let seededState = initialState;
     let barsProcessedCount = input.cursor.barsProcessedCount;
     const events: ForwardEventDraft[] = [];
@@ -157,7 +164,9 @@ export function processForwardClosedBars<State>(input: {
     const last = seedBars[seedBars.length - 1];
     return {
       status: "BOOTSTRAPPED",
-      reason: "Initial detector context was seeded from recent closed bars; events are bootstrap context, not live alerts.",
+      reason: seedStart > 0
+        ? "Initial detector context was seeded only from the latest contiguous suffix after an unclassified gap; earlier bars were intentionally excluded. Events are bootstrap context, not live alerts."
+        : "Initial detector context was seeded from recent closed bars; events are bootstrap context, not live alerts.",
       state: seededState,
       barsProcessedCount,
       lastProcessedBarTs: last?.t ?? null,
