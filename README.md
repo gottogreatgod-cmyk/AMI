@@ -18,7 +18,7 @@ Historical replay and live monitoring are being built around the same determinis
 |---|---|
 | Workstation | Multi-chart 1/2/4 layouts, public provider REST sources, local immutable datasets |
 | Historical datasets | Dukascopy XAUUSD and NAS100 CFD import; separate BID/ASK revisions; importer v2 gap policy |
-| M1 chart | Select exact local M1 revision; matching-side recent monitor candles can extend the chart only while feed health is FRESH |
+| M1 chart | Select exact local M1 revision; matching-side recent monitor candles (up to 64 M1 bars) can extend the chart only while feed health is FRESH |
 | Monitor | Two instrument pollers, independent writer/tick freshness checks, heartbeat, bounded restart policy, plus four side-specific live detector workers |
 | Replay engine | One closed bar at a time, deterministic lifecycle events, warmup context, stable source/detector provenance |
 | First detector | Versioned structure-break/retest research heuristic (BOS/CHoCH, FORMING, ARMED, TRIGGERED, INVALIDATED, EXPIRED) |
