@@ -2,6 +2,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { createStructureBreakRetestMachine } from "../replay/detectors/structure-break-retest-detector";
+import type { ReplayMachine } from "../replay/replay-engine";
 import {
   fingerprintForwardBar,
   processForwardClosedBars,
@@ -178,8 +179,23 @@ describe("forward live closed-bar processor", () => {
 
   test("labels bars replayed from a recovered history as LIVE_RECOVERY, not LIVE_MONITOR", () => {
     const bars = makeBars(8);
+    const eventMachine: ReplayMachine<number> = {
+      detectorId: "origin-test",
+      detectorVersion: "1.0.0",
+      createInitialState: () => 0,
+      onClosedBar: (state, context) => ({
+        state: state + 1,
+        events: context.barIndex === 7 ? [{
+          setupKey: "origin-test-setup",
+          eventKey: "TRIGGERED",
+          type: "TRIGGERED",
+          reason: "origin contract fixture",
+          evidence: [{ code: "fixture", sourceBarTs: context.bar.t }],
+        }] : [],
+      }),
+    };
     const seeded = processForwardClosedBars({
-      cursor: emptyCursor(), bars: bars.slice(0, 7), machine: machine(),
+      cursor: emptyCursor(), bars: bars.slice(0, 7), machine: eventMachine,
       instrumentId: "XAUUSD-DUKA", timeframe: "m1", timeframeMs: 60_000,
     });
     const recoveryBar = bars[7];
@@ -192,7 +208,7 @@ describe("forward live closed-bar processor", () => {
         lastProcessedBarFingerprint: seeded.lastProcessedBarFingerprint,
       },
       bars,
-      machine: machine(),
+      machine: eventMachine,
       instrumentId: "XAUUSD-DUKA",
       timeframe: "m1",
       timeframeMs: 60_000,
@@ -201,7 +217,8 @@ describe("forward live closed-bar processor", () => {
 
     expect(recovered.status).toBe("PROCESSED");
     expect(recovered.lastProcessedBarTs).toBe(recoveryBar.t);
-    expect(recovered.events.every((event) => event.origin === "LIVE_RECOVERY")).toBe(true);
+    expect(recovered.events).toHaveLength(1);
+    expect(recovered.events[0].origin).toBe("LIVE_RECOVERY");
   });
 
   test("fingerprint is deterministic for exact bar content", () => {
