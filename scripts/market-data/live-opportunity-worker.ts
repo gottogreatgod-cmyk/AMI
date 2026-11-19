@@ -359,7 +359,7 @@ async function recoverFromVerifiedDataset(input: {
       item.fromTs !== null &&
       item.toTs !== null &&
       item.fromTs <= input.cursor.lastProcessedBarTs! &&
-      item.toTs >= input.latestLiveBarTs
+      item.toTs >= input.latestLiveBar.t
     )
     .sort((left, right) =>
       (right.importedAt ?? "").localeCompare(left.importedAt ?? "")
