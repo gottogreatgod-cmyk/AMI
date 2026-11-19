@@ -693,8 +693,8 @@ The market-data library now also exposes deterministic fixed-UTC M1 aggregation 
 ### 11.4 Latest code verification snapshot (2026-11-19)
 
 - Branch head at this snapshot: `45adc1b96449307c77056c344ae288fe7d809a10`.
-- GitHub Actions run #597: PASS — lint, strict TypeScript, deterministic unit/engine tests (185 passed, 0 failed), importer tests, CLI smoke tests and production build.
-- Run #596 also passed the same complete validation before the authenticated aggregation endpoint was added.
+- GitHub Actions run #604: PASS on code head `86e566e7ecc656c5d915e99601fbd901de2ee090` — lint, strict TypeScript, deterministic unit/engine tests (185 passed, 0 failed), importer tests, CLI smoke tests and production build.
+- Run #597 also passed the same complete validation after the authenticated aggregation endpoint was added and before the final launcher readiness gate.
 - The green workflow validates repository code and offline fixtures only. It does not certify real Dukascopy archives, a Windows local run, live feed availability, market-session calendars, broker economics or ten-session acceptance.
 
 ### 11.5 Release boundary
