@@ -24,7 +24,8 @@ Historical replay and live monitoring are being built around the same determinis
 | First detector | Versioned structure-break/retest research heuristic (BOS/CHoCH, FORMING, ARMED, TRIGGERED, INVALIDATED, EXPIRED) |
 | Persistence | User-scoped replay runs and immutable ordered events; same-run idempotency and changed-output conflict detection |
 | Day Review | Select exact M1 dataset and UTC day; render chart markers and setup evidence/timeline |
-| Live opportunities | Persisted detector cursors per instrument/side, active setup/invalidation state, separate LIVE_BOOTSTRAP and LIVE_MONITOR event origins, event timeline API and UI |
+| Live opportunities | Persisted detector cursors per instrument/side, active setup/invalidation state, separate LIVE_BOOTSTRAP/LIVE_MONITOR/LIVE_RECOVERY origins, exact verified-revision recovery checks, event timeline API and UI |
+| Derived timeframes | Deterministic UTC M1 aggregation to M5/M15/M30/H1/H4/D1, incomplete-bucket diagnostics and authenticated dataset aggregate API |
 | Risk | Calculator infrastructure exists; XAUUSD-DUKA/NAS100-DUKA remain fail-closed until actual venue economics are verified |
 | Execution | Broker order routing, fills and positions are disabled |
 
