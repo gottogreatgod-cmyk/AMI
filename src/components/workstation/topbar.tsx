@@ -80,10 +80,10 @@ export function Topbar({
             ) : (
               <WifiOff className="w-3.5 h-3.5 text-[#ef777d]" />
             )}
-            Binance {binanceOk ? <span className="text-[#4bc39a]">live</span> : <span className="text-[#ef777d]">err</span>}
+            Binance REST {binanceOk ? <span className="text-[#4bc39a]">ok</span> : <span className="text-[#ef777d]">err</span>}
           </span>
           <span className="flex items-center gap-1">
-            Yahoo {yahooOk ? <span className="text-[#4bc39a]">live</span> : <span className="text-[#ef777d]">err</span>}
+            Yahoo REST {yahooOk ? <span className="text-[#4bc39a]">ok</span> : <span className="text-[#ef777d]">err</span>}
           </span>
           <span className="flex items-center gap-1">
             DB {dbOk ? <span className="text-[#4bc39a]">ok</span> : <span className="text-[#e7b86d]">…</span>}

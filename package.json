@@ -10,7 +10,19 @@
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "market-data:import": "bun run scripts/market-data/import-dukascopy-csv.ts",
+    "market-data:download": "bun run scripts/market-data/download-dukascopy.ts",
+    "market-data:inspect": "bun run scripts/market-data/inspect-datasets.ts",
+    "market-data:monitor": "bun run scripts/market-data/monitor-dukascopy.ts",
+    "market-data:nq-sample": "python3 scripts/market-data/nq_sample_import.py",
+    "market-data:supervisor": "bun run scripts/market-data/local-supervisor.ts",
+    "db:push:safe": "prisma db push",
+    "local:station": "bun run scripts/local/local-workstation.ts",
+    "local:setup": "bun run scripts/local/setup-local.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

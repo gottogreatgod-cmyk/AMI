@@ -24,6 +24,8 @@ model User {
   strategies   Strategy[]
   runs         Run[]
   campaigns    Campaign[]
+  opportunities Opportunity[]
+  replayRuns    ReplayRun[]
 }
 
 model Strategy {
@@ -93,4 +95,199 @@ model Campaign {
   runs         Run[]
 
   @@index([userId, createdAt])
+}
+
+
+// ---------------------------------------------------------------------------
+// Opportunity lifecycle persistence. Events are append-only rows; the
+// Opportunity row is the current snapshot protected by an optimistic version.
+// No order, position, fill or broker state is stored in these models.
+// ---------------------------------------------------------------------------
+
+model Opportunity {
+  id                       String             @id @default(cuid())
+  userId                   String
+  user                     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dedupeKey                String
+  symbol                   String
+  timeframe                String
+  strategyKey              String
+  direction                String
+  status                   String             @default("WATCH")
+  resumeStatus             String?
+  candidateJson            String
+  createdAtTs              Float
+  updatedAtTs              Float
+  lastProcessedBarCloseTs  Float?
+  triggeredAtTs            Float?
+  invalidatedAtTs          Float?
+  expiredAtTs              Float?
+  suppressionReasonsJson   String             @default("[]")
+  version                  Int                @default(1)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  events                   OpportunityEvent[]
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status, updatedAt])
+  @@index([userId, symbol, timeframe])
+}
+
+model OpportunityEvent {
+  id             String      @id @default(cuid())
+  opportunityId  String
+  opportunity    Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  sequence       Int
+  type           String
+  fromStatus     String?
+  toStatus       String
+  atTs           Float
+  barCloseTs     Float?
+  reason         String
+  createdAt      DateTime    @default(now())
+
+  @@unique([opportunityId, sequence])
+  @@index([opportunityId, sequence])
+}
+
+
+// ---------------------------------------------------------------------------
+// Historical replay audit. Replay runs are immutable, user-scoped research
+// artifacts tied to exact source revisions and detector/engine provenance.
+// No broker, order, fill or position state is represented here.
+// ---------------------------------------------------------------------------
+
+model ReplayRun {
+  id                    String        @id @default(cuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runKey                String
+  instrumentId          String
+  timeframe             String
+  provider              String
+  sourceId              String
+  dataClass             String
+  revisionId            String
+  revisionHash          String
+  detectorId            String
+  detectorVersion       String
+  paramsHash            String
+  engineVersion         String
+  intervalFromTs        Float
+  intervalToTs          Float
+  warmupBarsRequested   Int
+  warmupBarsUsed        Int
+  inputBars             Int
+  evaluatedBars         Int
+  origin                String        @default("HISTORICAL_REPLAY")
+  createdAt             DateTime      @default(now())
+  events                ReplayEvent[]
+
+  @@unique([userId, runKey])
+  @@index([userId, createdAt])
+  @@index([userId, instrumentId, timeframe])
+  @@index([revisionId, detectorId, detectorVersion])
+}
+
+model ReplayEvent {
+  id                      String     @id @default(cuid())
+  replayRunId             String
+  replayRun               ReplayRun  @relation(fields: [replayRunId], references: [id], onDelete: Cascade)
+  eventIdentity           String
+  sequence                Int
+  setupId                 String
+  eventKey                String
+  type                    String
+  instrumentId            String
+  timeframe               String
+  occurredAtTs            Float
+  discoveredAtTs          Float
+  confirmationBarTs       Float
+  confirmationBarCloseTs  Float
+  withinRequestedRange    Boolean
+  reason                  String
+  evidenceJson            String     @default("[]")
+  origin                  String     @default("HISTORICAL_REPLAY")
+  createdAt               DateTime   @default(now())
+
+  @@unique([replayRunId, eventIdentity])
+  @@unique([replayRunId, sequence])
+  @@index([replayRunId, sequence])
+  @@index([replayRunId, discoveredAtTs])
+  @@index([setupId, occurredAtTs])
+}
+
+
+// ---------------------------------------------------------------------------
+// Forward live opportunity monitor. It consumes only fresh, closed, quote-side
+// bars and commits the detector state + watermark + emitted events atomically.
+// Historical replay remains a distinct origin and store.
+// ---------------------------------------------------------------------------
+
+model LiveOpportunityCursor {
+  id                      String   @id @default(cuid())
+  cursorKey               String   @unique
+  instrumentId            String
+  providerInstrument      String
+  timeframe               String
+  priceSide               String
+  detectorId              String
+  detectorVersion         String
+  paramsHash              String
+  engineVersion           String
+  stateSchemaVersion      Int      @default(1)
+  generation              Int      @default(1)
+  stateJson               String
+  lastProcessedBarTs      Float?
+  lastProcessedBarCloseTs Float?
+  lastProcessedBarFingerprint String?
+  lastRecoveryRevisionId  String?
+  lastRecoveryRevisionHash String?
+  barsProcessedCount      Int      @default(0)
+  lastEventSequence       Int      @default(0)
+  status                  String   @default("NOT_STARTED")
+  lastError               String?
+  lastSnapshotFetchedAt   Float?
+  lastTickTimestamp       Float?
+  heartbeatAt             DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  events                  LiveOpportunityEvent[]
+
+  @@index([instrumentId, timeframe, priceSide, status])
+  @@index([updatedAt])
+}
+
+model LiveOpportunityEvent {
+  id                    String               @id @default(cuid())
+  cursorId              String
+  cursor                LiveOpportunityCursor @relation(fields: [cursorId], references: [id], onDelete: Cascade)
+  eventIdentity         String
+  sequence              Int
+  setupId               String
+  eventKey              String
+  type                  String
+  direction             String?
+  instrumentId          String
+  timeframe             String
+  priceSide             String
+  occurredAtTs          Float
+  discoveredAtTs        Float
+  confirmationBarTs     Float
+  confirmationBarCloseTs Float
+  sourceBarFingerprint  String
+  sourceRevisionId      String?
+  sourceRevisionHash    String?
+  sourcePollFetchedAt   Float
+  sourceTickTimestamp   Float?
+  reason                String
+  evidenceJson          String               @default("[]")
+  origin                String               @default("LIVE_MONITOR")
+  recordedAt            DateTime             @default(now())
+
+  @@unique([cursorId, eventIdentity])
+  @@unique([cursorId, sequence])
+  @@index([cursorId, discoveredAtTs])
+  @@index([setupId, occurredAtTs])
+  @@index([instrumentId, timeframe, priceSide, discoveredAtTs])
 }

@@ -135,7 +135,8 @@ function computeSeries(bars: Bar[], cfg: StrategyConfig): Series {
   const s: Series = {
     atr: atr(bars, cfg.atrPeriod),
     emaFilter: cfg.entry.emaFilter ? ema(closes, cfg.entry.emaFilter) : null,
-    dc: cfg.entry.kind === "donchian-break" || cfg.exit.exitOnChannelMid ? donchian(bars, cfg.entry.lookback) : null,
+    // Also surfaced in live market context even when the strategy family does not trade Donchian breaks.
+    dc: donchian(bars, cfg.entry.lookback),
     bb:
       cfg.entry.kind === "rsi-extreme" || cfg.entry.kind === "bb-extreme"
         ? bollinger(closes, cfg.entry.bbPeriod ?? 20, cfg.entry.bbStd ?? 2)
@@ -205,6 +206,35 @@ function entrySignalAt(bars: Bar[], i: number, cfg: StrategyConfig, s: Series): 
   return 0;
 }
 
+
+/** Canonical entry-rule evaluation used by both backtests and live signals. */
+export function evaluateClosedBar(
+  bars: Bar[],
+  index: number,
+  cfg: StrategyConfig
+): {
+  signal: 0 | 1 | -1;
+  atr: number;
+  rsi: number | null;
+  donchianUpper: number | null;
+  donchianLower: number | null;
+} {
+  if (index < 0 || index >= bars.length) {
+    return { signal: 0, atr: Number.NaN, rsi: null, donchianUpper: null, donchianLower: null };
+  }
+  const series = computeSeries(bars, cfg);
+  const rsiValue = series.rsi?.[index];
+  const upper = series.dc?.upper[index];
+  const lower = series.dc?.lower[index];
+  return {
+    signal: entrySignalAt(bars, index, cfg, series),
+    atr: series.atr[index],
+    rsi: rsiValue != null && Number.isFinite(rsiValue) ? rsiValue : null,
+    donchianUpper: upper != null && Number.isFinite(upper) ? upper : null,
+    donchianLower: lower != null && Number.isFinite(lower) ? lower : null,
+  };
+}
+
 /** Signal-based exit at bar close i (for an open position with direction dir). */
 function signalExitAt(bars: Bar[], i: number, dir: 1 | -1, cfg: StrategyConfig, s: Series): boolean {
   const c = bars[i].c;
@@ -247,6 +277,30 @@ export function computeWarmup(cfg: StrategyConfig): number {
   return w;
 }
 
+/** Minimum closed higher-timeframe history needed before its filter is usable. */
+export function requiredHtfWarmupBars(cfg: StrategyConfig): number {
+  if (!cfg.htf) return 0;
+  if (cfg.htf.type === "range-neutral") {
+    return Math.max(20, Math.min(cfg.htf.fast, 14) * 2 + 2);
+  }
+  return Math.max(2, cfg.htf.fast, cfg.htf.slow) + 2;
+}
+
+/** True only when enough HTF bars have actually closed by the decision time. */
+export function hasHtfWarmup(
+  htfBars: Bar[] | null,
+  cfg: StrategyConfig,
+  decisionTs: number
+): boolean {
+  if (!cfg.htf) return true;
+  if (!htfBars?.length || !Number.isFinite(decisionTs)) return false;
+  let eligible = 0;
+  for (const bar of htfBars) {
+    if (bar.ct <= decisionTs) eligible++;
+  }
+  return eligible >= requiredHtfWarmupBars(cfg);
+}
+
 export function runBacktest(
   symbol: string,
   tf: Timeframe,
@@ -275,7 +329,14 @@ export function runBacktest(
     warmup,
     insufficientData: n < warmup + 30,
   };
-  if (diagnostics.insufficientData) {
+  const htfReady =
+    !cfg.htf ||
+    (!diagnostics.insufficientData &&
+      hasHtfWarmup(htfBars, cfg, bars[warmup]?.ct ?? Number.NEGATIVE_INFINITY));
+  if (diagnostics.insufficientData || !htfReady) {
+    // A configured HTF gate is mandatory: missing or late history must never
+    // silently become a permissive filter.
+    diagnostics.insufficientData = true;
     return { trades: [], equityCurve: [{ t: bars[0]?.t ?? Date.now(), eq: startingEquity }], diagnostics };
   }
 

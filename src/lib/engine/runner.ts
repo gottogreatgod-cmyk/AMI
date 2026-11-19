@@ -20,10 +20,17 @@ import type {
 import { TF_MS, ENGINE_VERSION } from "./types";
 import { getBars } from "@/lib/data/providers";
 import { getInstrument } from "@/lib/data/instruments";
-import { runBacktest, buildHtfStates, computeWarmup } from "./backtest";
+import {
+  runBacktest,
+  buildHtfStates,
+  computeWarmup,
+  evaluateClosedBar,
+  htfStateAt,
+  hasHtfWarmup,
+  requiredHtfWarmupBars,
+} from "./backtest";
 import { autoReview } from "./review";
 import { downsampleEquity, summarizeRun } from "./scoring";
-import { atr as atrSeries, donchian as donchianSeries, rsi as rsiSeries } from "./indicators";
 
 export const MAX_STORED_TRADES = 1000;
 
@@ -53,7 +60,7 @@ export interface RunPayload {
 /** How much HTF history to fetch so the HTF filter has its own warmup. */
 function htfFetchDays(cfg: StrategyConfig, tradingDays: number): number {
   if (!cfg.htf) return 0;
-  const htfWarmupDays = ((cfg.htf.slow + 10) * TF_MS[cfg.htf.tf]) / 86_400_000;
+  const htfWarmupDays = ((requiredHtfWarmupBars(cfg) + 10) * TF_MS[cfg.htf.tf]) / 86_400_000;
   return Math.ceil(tradingDays + htfWarmupDays * 1.2);
 }
 
@@ -133,8 +140,7 @@ export async function executeRun(
       htfBars = res.bars;
       htfQuality = res.quality;
     } catch {
-      htfBars = null; // filter degrades closed: no HTF data → engine's htfStateAt returns permissive? No —
-      // buildHtfStates(null) → htfStateAt returns 1 (permissive). We keep honest: mark in review.
+      // The engine fails closed when a configured HTF dataset is unavailable.
     }
   }
 
@@ -152,10 +158,17 @@ export async function executeRun(
     (effectiveCfg.costs?.feeBpsPerSide ?? inst.feeBpsPerSide) +
     (effectiveCfg.costs?.slipBpsPerSide ?? inst.slipBpsPerSide);
   const review = autoReview(effectiveCfg, tf, metrics, split, costsBpsPerSide);
-  if (effectiveCfg.htf && !htfBars) {
+  const htfReady =
+    !effectiveCfg.htf ||
+    hasHtfWarmup(
+      htfBars,
+      effectiveCfg,
+      bars[computeWarmup(effectiveCfg)]?.ct ?? Number.NEGATIVE_INFINITY
+    );
+  if (effectiveCfg.htf && !htfReady) {
     review.findings.push({
-      severity: "warn",
-      message: `HTF filter ${effectiveCfg.htf.tf} could not be loaded — entries were NOT gated by the higher timeframe for this run.`,
+      severity: "critical",
+      message: `HTF filter ${effectiveCfg.htf.tf} is unavailable or lacks enough closed history at the first decision bar. The run is marked insufficient and no entries are allowed.`,
     });
   }
 
@@ -247,110 +260,75 @@ export async function currentSignalState(
 ): Promise<SignalState> {
   const inst = getInstrument(symbol);
   if (!inst) throw new Error(`Unknown instrument ${symbol}`);
-  const days = opts.days ?? Math.min(120, 120);
+
+  const lowerWarmupDays = Math.ceil(((computeWarmup(cfg) + 30) * TF_MS[tf]) / 86_400_000);
+  const days = Math.max(opts.days ?? 120, lowerWarmupDays);
   const { bars } = await getBars(symbol, tf, { days });
-  const { bars: htfBars } = cfg.htf
-    ? await getBars(symbol, cfg.htf.tf, { days: Math.max(days, 200) })
-    : { bars: null as Bar[] | null };
+  if (bars.length === 0) throw new Error(`No closed bars are available for ${symbol} ${tf}`);
 
   const n = bars.length;
   const i = n - 1;
   const warmup = computeWarmup(cfg);
+  const evaluation = evaluateClosedBar(bars, i, cfg);
+  const atrPct = evaluation.atr > 0 && bars[i].c > 0 ? (evaluation.atr / bars[i].c) * 100 : 0;
 
-  // Reuse engine internals via a tiny evaluation window
-  const { entrySignal, seriesInfo } = evaluateHead(bars, cfg);
-  const htf = htfBars ? buildHtfStates(htfBars, cfg) : null;
-  const gate = htfStateFor(htf, bars[i].ct);
-  const atrPct = seriesInfo.atr > 0 ? (seriesInfo.atr / bars[i].c) * 100 : 0;
-
+  let gate = 1;
+  let htfReady = true;
   let htfState: SignalState["htfState"] = "n/a";
   if (cfg.htf) {
-    if (cfg.htf.type === "range-neutral") htfState = gate >= 1 ? "range-ok" : "trending";
-    else htfState = gate === 1 ? "bull" : gate === -1 ? "bear" : "neutral";
+    const htfWarmupDays = Math.ceil(
+      ((requiredHtfWarmupBars(cfg) + 10) * TF_MS[cfg.htf.tf]) / 86_400_000
+    );
+    const htfDays = Math.max(days, htfWarmupDays);
+    let htfBars: Bar[] | null = null;
+    try {
+      const result = await getBars(symbol, cfg.htf.tf, { days: htfDays });
+      htfBars = result.bars;
+    } catch {
+      htfBars = null;
+    }
+    htfReady = hasHtfWarmup(htfBars, cfg, bars[i].ct);
+
+    if (htfReady && htfBars) {
+      const htf = buildHtfStates(htfBars, cfg);
+      gate = htfStateAt(htf, bars[i].ct);
+      if (cfg.htf.type === "range-neutral") {
+        htfState = gate >= 1 ? "range-ok" : "trending";
+      } else {
+        htfState = gate === 1 ? "bull" : gate === -1 ? "bear" : "neutral";
+      }
+    }
   }
+
+  const htfAllowsSignal =
+    !cfg.htf ||
+    (htfReady &&
+      (cfg.htf.type === "range-neutral"
+        ? gate >= 1
+        : evaluation.signal === 1
+          ? gate === 1
+          : evaluation.signal === -1
+            ? gate === -1
+            : false));
+  const validSignal = n > warmup && htfAllowsSignal ? evaluation.signal : 0;
+
+  let note = "";
+  if (n <= warmup) note = "history shorter than strategy warmup";
+  else if (cfg.htf && !htfReady) note = `HTF ${cfg.htf.tf} history unavailable or too short; signal suppressed (fail-closed)`;
 
   return {
     symbol,
     tf,
     strategyKey: cfg.key,
     strategyName: cfg.name,
-    bias: n > warmup ? (entrySignal === 1 ? "long" : entrySignal === -1 ? "short" : null) : null,
-    htfState,
+    bias: validSignal === 1 ? "long" : validSignal === -1 ? "short" : null,
+    htfState: cfg.htf && !htfReady ? "n/a" : htfState,
     lastPrice: bars[i].c,
     atrPct,
-    rsi: seriesInfo.rsi ?? null,
-    donchianUpper: seriesInfo.donchianUpper ?? null,
-    donchianLower: seriesInfo.donchianLower ?? null,
+    rsi: evaluation.rsi,
+    donchianUpper: evaluation.donchianUpper,
+    donchianLower: evaluation.donchianLower,
     asOfTs: bars[i].ct,
-    note: n <= warmup ? "history shorter than warmup" : "",
+    note,
   };
-}
-
-// Internal helper: evaluate the entry signal on the last closed bar and
-// expose a few series values for display.
-function evaluateHead(bars: Bar[], cfg: StrategyConfig) {
-  const n = bars.length;
-  const i = n - 1;
-  const closes = bars.map((b) => b.c);
-  const a = atrSeries(bars, cfg.atrPeriod);
-  const dc = donchianSeries(bars, cfg.entry.lookback);
-  const rsiVals = cfg.entry.kind === "rsi-extreme" || cfg.exit.exitOnRsiMid ? rsiSeries(closes, cfg.entry.rsiPeriod ?? 2) : null;
-
-  // Simplified re-evaluation of the entry rule on the head bar:
-  let sig: 0 | 1 | -1 = 0;
-  const c = bars[i].c;
-  if (i >= cfg.entry.lookback) {
-    switch (cfg.entry.kind) {
-      case "donchian-break":
-        if (!Number.isNaN(dc.upper[i]) && c > dc.upper[i]) sig = 1;
-        else if (!Number.isNaN(dc.lower[i]) && c < dc.lower[i]) sig = -1;
-        break;
-      case "rsi-extreme": {
-        const r = rsiVals?.[i];
-        if (r != null && !Number.isNaN(r)) {
-          if (r < (cfg.entry.rsiLongBelow ?? 10)) sig = 1;
-          else if (r > (cfg.entry.rsiShortAbove ?? 90)) sig = -1;
-        }
-        break;
-      }
-      case "ts-momentum": {
-        const lb = cfg.entry.momentumLookback ?? 90;
-        if (i >= lb) {
-          const mom = c - bars[i - lb].c;
-          sig = mom > 0 ? 1 : mom < 0 ? -1 : 0;
-        }
-        break;
-      }
-      default:
-        sig = 0;
-    }
-  }
-
-  return {
-    entrySignal: sig,
-    seriesInfo: {
-      atr: a[i],
-      rsi: rsiVals ? rsiVals[i] : null,
-      donchianUpper: Number.isNaN(dc.upper[i]) ? null : dc.upper[i],
-      donchianLower: Number.isNaN(dc.lower[i]) ? null : dc.lower[i],
-    },
-  };
-}
-
-function htfStateFor(htf: ReturnType<typeof buildHtfStates> | null, decisionTs: number): number {
-  if (!htf) return 0;
-  const { closeTs, state } = htf;
-  let lo = 0;
-  let hi = closeTs.length - 1;
-  let ans = -1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (closeTs[mid] <= decisionTs) {
-      ans = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return ans < 0 ? 0 : state[ans];
 }

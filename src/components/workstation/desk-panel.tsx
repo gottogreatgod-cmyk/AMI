@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MiniChart, type ChartMarker } from "./mini-chart";
+import { MiniChart } from "./mini-chart";
+import {
+  buildPreviousAvailableUtcDateLevels,
+  buildStructureMarkers,
+} from "@/lib/engine/market-structure";
+import {
+  buildDisplacementZones,
+  type DisplacementZone,
+} from "@/lib/engine/displacement-zones";
 import { usePolling, fmtPrice } from "./hooks";
 import type { Bar, DataQuality, Timeframe } from "@/lib/engine/types";
 import {
@@ -18,12 +26,17 @@ import { cn } from "@/lib/utils";
 export interface ChartSlot {
   symbol: string;
   tf: Timeframe;
+  /** Exact immutable local dataset revision; absent means the normal provider feed. */
+  datasetId?: string;
 }
 
-const TFS: Timeframe[] = ["15m", "45m", "1h", "3h", "4h", "1d", "1w"];
+
+const TFS: Timeframe[] = ["1m", "15m", "45m", "1h", "3h", "4h", "1d", "1w"];
 
 function daysForTf(tf: Timeframe): number {
   switch (tf) {
+    case "1m":
+      return 1;
     case "15m":
     case "45m":
       return 10;
@@ -39,11 +52,104 @@ function daysForTf(tf: Timeframe): number {
   }
 }
 
+type DatasetTimeframe = "m1" | "m5" | "m15" | "m30" | "h1" | "h4" | "d1";
+
+interface LocalDatasetOption {
+  datasetId: string;
+  instrumentId: string;
+  displayName: string;
+  dataClass: string;
+  timeframe: DatasetTimeframe;
+  priceSide: "bid" | "ask";
+  qualityStatus: "PASS" | "REVIEW" | "REJECTED";
+  rows: number;
+  fromTs: number | null;
+  toTs: number | null;
+  importedAt: string;
+}
+
+interface DatasetCatalogResponse {
+  datasets: LocalDatasetOption[];
+  skipped: Array<{ directoryName: string; reason: string }>;
+  fetchedAt: number;
+}
+
+interface MonitorInstrumentStatus {
+  instrumentId: string;
+  state: string;
+  poller: {
+    lastError?: string | null;
+    lastSuccessAt?: number | null;
+    intervalSeconds?: number;
+  } | null;
+  snapshot: {
+    tick?: {
+      bid: number;
+      ask: number;
+      spreadBps: number | null;
+    } | null;
+    fetchedAt?: number;
+  } | null;
+}
+
+interface MonitorStatusResponse {
+  feedMode: "EXPERIMENTAL_POLLING";
+  ordersEnabled: false;
+  instruments: MonitorInstrumentStatus[];
+  fetchedAt: number;
+  note: string;
+}
+
+const DATASET_CHART_TIMEFRAME: Partial<Record<DatasetTimeframe, Timeframe>> = {
+  m1: "1m",
+  m15: "15m",
+  h1: "1h",
+  h4: "4h",
+  d1: "1d",
+};
+
+interface LiveBarsResponse {
+  instrumentId: string;
+  priceSide: "bid" | "ask";
+  timeframe: "m1";
+  feedMode: "EXPERIMENTAL_POLLING";
+  state: "FRESH" | "STALE" | "NO_TICK" | "ERROR" | "NOT_STARTED" | "INVALID_SNAPSHOT";
+  bars: Array<Bar & { forming?: boolean }>;
+  tick: {
+    timestamp: number | null;
+    bid: number | null;
+    ask: number | null;
+    spread: number | null;
+    spreadBps: number | null;
+  } | null;
+  health?: { tickAgeMs: number | null; snapshotWriteAgeMs: number | null };
+  lastError?: string | null;
+  pollIntervalSeconds?: number | null;
+}
+
 interface CandlesResponse {
   symbol: string;
   tf: Timeframe;
   bars: Bar[];
-  quality: DataQuality;
+  quality: DataQuality & {
+    datasetId?: string;
+    priceSide?: "bid" | "ask";
+    qualityStatus?: "PASS" | "REVIEW" | "REJECTED";
+  };
+  dataset?: {
+    datasetId: string;
+    dataClass: string;
+    recommendedAnalysisMethod: string;
+    rawSha256: string;
+    normalizedSha256: string;
+    operationPolicy?: {
+      chart: { allowed: boolean; reasons: string[] };
+      signalResearch: { allowed: boolean; reasons: string[] };
+      strategyBacktest: { allowed: boolean; reasons: string[] };
+      paperExecution: { allowed: boolean; reasons: string[] };
+      liveOrderRouting: { allowed: boolean; reasons: string[] };
+    };
+  };
 }
 
 function ChartCard({
@@ -54,21 +160,141 @@ function ChartCard({
   onSymbolChange,
   onTfChange,
   priceDecimals,
+  refreshKey,
+  datasets,
+  includeReview,
+  onDatasetChange,
 }: {
   slot: ChartSlot;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
+  datasets: LocalDatasetOption[];
+  includeReview: boolean;
   onFocus: () => void;
   isFocused: boolean;
   onSymbolChange: (symbol: string) => void;
   onTfChange: (tf: Timeframe) => void;
+  onDatasetChange: (datasetId: string | null) => void;
   priceDecimals: number;
+  refreshKey: number;
 }) {
-  const { data, loading } = usePolling<CandlesResponse>(
-    `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`,
-    60_000
+  const selectedDatasetId = slot.datasetId ?? "provider";
+  const [showStructure, setShowStructure] = useState(false);
+  const [showPriorUtcDate, setShowPriorUtcDate] = useState(false);
+  const [showDisplacementZones, setShowDisplacementZones] = useState(false);
+  const selectableDatasets = useMemo(
+    () => datasets.filter((dataset) =>
+      (dataset.qualityStatus === "PASS" || (includeReview && dataset.qualityStatus === "REVIEW")) &&
+      DATASET_CHART_TIMEFRAME[dataset.timeframe] === slot.tf
+    ),
+    [datasets, slot.tf, includeReview]
   );
-  const last = data?.bars?.[data.bars.length - 1];
-  const q = data?.quality;
+  const selectedDataset = selectableDatasets.find((dataset) => dataset.datasetId === selectedDatasetId);
+  const chartSymbol = selectedDataset?.instrumentId ?? slot.symbol;
+  const chartTf = selectedDataset
+    ? DATASET_CHART_TIMEFRAME[selectedDataset.timeframe] ?? slot.tf
+    : slot.tf;
+  const candlesUrl = selectedDataset
+    ? `/api/candles?symbol=${encodeURIComponent(chartSymbol)}&tf=${chartTf}&datasetId=${encodeURIComponent(selectedDataset.datasetId)}&limit=600${selectedDataset.qualityStatus === "REVIEW" ? "&allowReview=true" : ""}`
+    : `/api/candles?symbol=${encodeURIComponent(slot.symbol)}&tf=${slot.tf}&limit=600&days=${daysForTf(slot.tf)}`;
+  // A pinned local dataset is immutable; refetch it only on explicit refresh
+  // or an infrequent safety interval instead of rereading the entire archive each minute.
+  const { data, error, loading } = usePolling<CandlesResponse>(
+    candlesUrl,
+    selectedDataset ? 86_400_000 : 60_000,
+    refreshKey
+  );
+  const liveBarsUrl = selectedDataset?.timeframe === "m1" && selectedDataset.toTs !== null &&
+    Date.now() - selectedDataset.toTs <= 48 * 60 * 60_000
+      ? `/api/market-data/live-bars?instrumentId=${encodeURIComponent(selectedDataset.instrumentId)}&priceSide=${selectedDataset.priceSide}`
+      : null;
+  const { data: liveData, error: liveError } = usePolling<LiveBarsResponse>(
+    liveBarsUrl,
+    15_000,
+    refreshKey
+  );
+  const dataMatchesSelection = Boolean(
+    data &&
+    data.symbol === chartSymbol &&
+    data.tf === chartTf &&
+    (selectedDataset
+      ? data.dataset?.datasetId === selectedDataset.datasetId
+      : data.dataset === undefined)
+  );
+  const historicalBars = dataMatchesSelection ? data?.bars ?? [] : [];
+  const liveFeedMatches = Boolean(
+    selectedDataset &&
+    liveData &&
+    liveData.instrumentId === selectedDataset.instrumentId &&
+    liveData.priceSide === selectedDataset.priceSide &&
+    liveData.timeframe === selectedDataset.timeframe
+  );
+  const visibleBars = useMemo(() => {
+    if (
+      !liveFeedMatches ||
+      liveData?.state !== "FRESH" ||
+      liveData.bars.length === 0 ||
+      historicalBars.length === 0
+    ) return historicalBars;
+
+    const historyTail = historicalBars[historicalBars.length - 1];
+    const liveByTimestamp = new Map(liveData.bars.map((bar) => [bar.t, bar]));
+    const overlap = liveByTimestamp.get(historyTail.t);
+
+    // Never visually stitch two price histories without a same-time OHLC
+    // overlap. A different provider revision or quote-side mismatch remains
+    // visible as historical-only until explicitly reconciled.
+    if (
+      !overlap ||
+      overlap.o !== historyTail.o ||
+      overlap.h !== historyTail.h ||
+      overlap.l !== historyTail.l ||
+      overlap.c !== historyTail.c
+    ) return historicalBars;
+
+    const orderedLive = liveData.bars
+      .filter((bar) => bar.t >= historyTail.t)
+      .slice()
+      .sort((a, b) => a.t - b.t);
+    if (orderedLive.length === 0 || orderedLive[0].t !== historyTail.t) {
+      return historicalBars;
+    }
+
+    for (let index = 1; index < orderedLive.length; index++) {
+      if (
+        orderedLive[index].t !== orderedLive[index - 1].t + 60_000 ||
+        orderedLive[index].t <= orderedLive[index - 1].ct
+      ) return historicalBars;
+    }
+
+    return [
+      ...historicalBars.slice(0, -1),
+      ...orderedLive.map((bar) => ({ ...bar, v: bar.v ?? 0 })),
+    ].slice(-1200);
+  }, [historicalBars, liveData, liveFeedMatches]);
+  const last = visibleBars[visibleBars.length - 1];
+  const q = dataMatchesSelection ? data?.quality : undefined;
+  const chartDecimals = selectedDataset ? 2 : priceDecimals;
+  const structureMarkers = useMemo(
+    () => showStructure ? buildStructureMarkers(visibleBars) : [],
+    [showStructure, visibleBars]
+  );
+  const priorUtcDateLevels = useMemo(
+    () => showPriorUtcDate ? buildPreviousAvailableUtcDateLevels(visibleBars) : null,
+    [showPriorUtcDate, visibleBars]
+  );
+  const priorUtcDateLabel = priorUtcDateLevels
+    ? new Date(priorUtcDateLevels.sourceDayStartTs).toISOString().slice(0, 10)
+    : null;
+  const displacementZones = useMemo(() => {
+    if (!showDisplacementZones) return [];
+    const allZones = buildDisplacementZones(visibleBars);
+    const active = allZones.filter((zone) => zone.status !== "INVALIDATED");
+    const latestDemand = active.filter((zone) => zone.direction === "DEMAND").at(-1);
+    const latestSupply = active.filter((zone) => zone.direction === "SUPPLY").at(-1);
+    return [latestDemand, latestSupply].filter(
+      (zone): zone is DisplacementZone => zone !== undefined
+    );
+  }, [showDisplacementZones, visibleBars]);
 
   return (
     <article
@@ -76,16 +302,76 @@ function ChartCard({
         "flex flex-col min-h-0 min-w-0 rounded-lg border overflow-hidden bg-gradient-to-b from-[#101d28] to-[#0d1720]",
         isFocused ? "border-[#668db9] shadow-[inset_0_0_0_1px_#668db933]" : "border-[#20323f]"
       )}
-      aria-label={`Chart ${slot.symbol} ${slot.tf}`}
+      aria-label={`Chart ${chartSymbol} ${chartTf}`}
     >
       <div className="flex items-center justify-between gap-2 px-2.5 pt-2 pb-1.5">
-        <button onClick={onFocus} className="flex items-baseline gap-2 min-w-0 text-left">
-          <strong className="text-[12px] truncate">{slot.symbol}</strong>
-          <span className="text-[9px] text-[#8193a3] truncate hidden sm:inline">{q?.providerSymbol ?? ""}</span>
+        <button onClick={onFocus} disabled={Boolean(selectedDataset)} className="flex items-baseline gap-2 min-w-0 text-left disabled:cursor-default">
+          <strong className="text-[12px] truncate">{chartSymbol}</strong>
+          <span className="text-[9px] text-[#8193a3] truncate hidden sm:inline">
+            {selectedDataset ? "LOCAL · " + selectedDataset.displayName : q?.providerSymbol ?? ""}
+          </span>
         </button>
         <div className="flex items-center gap-1.5">
-          <Select value={slot.symbol} onValueChange={onSymbolChange}>
-            <SelectTrigger className="h-6 w-[104px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowDisplacementZones((value) => !value)}
+            aria-pressed={showDisplacementZones}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              showDisplacementZones ? "text-[#4baf91] bg-[#123025]" : "text-[#8193a3]"
+            )}
+            title="ATR-normalized base plus closed-bar displacement heuristic; not institutional order-flow data"
+          >
+            ZONES {showDisplacementZones ? "ON" : "OFF"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowPriorUtcDate((value) => !value)}
+            aria-pressed={showPriorUtcDate}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              showPriorUtcDate ? "text-[#d5a85c] bg-[#302719]" : "text-[#8193a3]"
+            )}
+            title="Observed high/low from the prior available UTC calendar date; not an exchange session level"
+          >
+            PRIOR UTC {showPriorUtcDate ? "ON" : "OFF"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowStructure((value) => !value)}
+            aria-pressed={showStructure}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              showStructure ? "text-[#4bc39a] bg-[#123025]" : "text-[#8193a3]"
+            )}
+            title="Confirmed closed-bar BOS and CHoCH markers only"
+          >
+            STRUCTURE {showStructure ? "ON" : "OFF"}
+          </Button>
+          <Select
+            value={selectedDataset?.datasetId ?? "provider"}
+            onValueChange={(value) => onDatasetChange(value === "provider" ? null : value)}
+          >
+            <SelectTrigger className="h-6 w-[138px] bg-[#0a121a] border-[#34506a] text-[10px] px-2">
+              <SelectValue placeholder="Provider feed" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#0e1720] border-[#223546] text-[11px] max-h-72">
+              <SelectItem value="provider" className="text-[11px]">Provider feed</SelectItem>
+              {selectableDatasets.map((dataset) => (
+                <SelectItem key={dataset.datasetId} value={dataset.datasetId} className="text-[10px]">
+                  {dataset.instrumentId} · {dataset.timeframe} · {dataset.priceSide.toUpperCase()} · {dataset.qualityStatus} · {dataset.rows} bars
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={slot.symbol} onValueChange={(symbol) => {
+            onDatasetChange(null);
+            onSymbolChange(symbol);
+          }}>
+            <SelectTrigger disabled={Boolean(selectedDataset)} className="h-6 w-[104px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#0e1720] border-[#223546] text-[11px] max-h-72">
@@ -96,8 +382,11 @@ function ChartCard({
               ))}
             </SelectContent>
           </Select>
-          <Select value={slot.tf} onValueChange={(v) => onTfChange(v as Timeframe)}>
-            <SelectTrigger className="h-6 w-[62px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
+          <Select value={slot.tf} onValueChange={(v) => {
+            onDatasetChange(null);
+            onTfChange(v as Timeframe);
+          }}>
+            <SelectTrigger disabled={Boolean(selectedDataset)} className="h-6 w-[62px] bg-[#0a121a] border-[#223546] text-[10px] px-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#0e1720] border-[#223546] text-[11px]">
@@ -113,24 +402,54 @@ function ChartCard({
       <div className="flex gap-2.5 px-2.5 pb-1 text-[9px] text-[#8295a6] tnum">
         {last && (
           <>
-            <span>O {fmtPrice(last.o, Math.min(priceDecimals, 2))}</span>
-            <span>H {fmtPrice(last.h, Math.min(priceDecimals, 2))}</span>
-            <span>L {fmtPrice(last.l, Math.min(priceDecimals, 2))}</span>
+            <span>O {fmtPrice(last.o, Math.min(chartDecimals, 2))}</span>
+            <span>H {fmtPrice(last.h, Math.min(chartDecimals, 2))}</span>
+            <span>L {fmtPrice(last.l, Math.min(chartDecimals, 2))}</span>
             <span className={last.c >= last.o ? "text-[#4bc39a]" : "text-[#ef777d]"}>
-              C {fmtPrice(last.c, Math.min(priceDecimals, 2))}
+              C {fmtPrice(last.c, Math.min(chartDecimals, 2))}
             </span>
           </>
         )}
-        {loading && !data && <span>loading…</span>}
+        {liveFeedMatches && liveData?.state === "FRESH" && liveData.tick && (
+          <span className="text-[#4bc39a]">
+            DUKA TICK · BID {fmtPrice(liveData.tick.bid, 2)} / ASK {fmtPrice(liveData.tick.ask, 2)} · SPR {fmtPrice(liveData.tick.spread, 2)}
+          </span>
+        )}
+        {loading && !dataMatchesSelection && <span>loading…</span>}
       </div>
       <div className="flex-1 min-h-0 px-1 pb-1">
-        <MiniChart bars={data?.bars ?? []} decimals={priceDecimals} chartId={`${slot.symbol}-${slot.tf}`} />
+        <MiniChart
+          bars={visibleBars}
+          markers={structureMarkers}
+          priorUtcDateLevels={priorUtcDateLevels}
+          displacementZones={displacementZones}
+          decimals={chartDecimals}
+          chartId={`${chartSymbol}-${chartTf}-${selectedDataset?.datasetId ?? "provider"}`}
+        />
       </div>
       <div className="h-[20px] border-t border-[#1d2c38] flex items-center justify-between px-2 text-[8.5px] text-[#748999]">
-        <span className="truncate">
-          {q
-            ? `${q.provider.toUpperCase()} · ${q.bars} closed bars${q.resampledFrom ? ` · agg from ${q.resampledFrom}` : ""}`
-            : "…"}
+        <span
+          className="truncate"
+          title={error ?? data?.dataset?.operationPolicy?.strategyBacktest.reasons.join(" ") ?? q?.note ?? undefined}
+        >
+          {error
+            ? (dataMatchesSelection ? "STALE · " : "ERROR · ") + error
+            : q?.datasetId
+              ? "LOCAL DATASET · " + (q.priceSide ?? "").toUpperCase() + " · " + (q.qualityStatus ?? "UNVERIFIED") + " · " + q.bars + " bars" +
+                (data?.dataset?.operationPolicy?.strategyBacktest.allowed ? " · BACKTEST ELIGIBLE" : " · CHART ONLY") +
+                (showPriorUtcDate ? " · PRIOR UTC " + (priorUtcDateLabel ?? "N/A") : "") +
+                (showDisplacementZones ? " · ZONES " + displacementZones.map((zone) => zone.direction[0] + ":" + zone.status).join(" / ") : "") +
+                (liveBarsUrl
+                  ? " · LIVE POLL " + (liveFeedMatches ? liveData?.state ?? "WAIT" : "WAIT") +
+                    (liveData?.health?.tickAgeMs != null ? " · TICK " + Math.round(liveData.health.tickAgeMs / 1000) + "s" : "") +
+                    (liveError ? " · " + liveError : "") +
+                    (liveData?.lastError ? " · " + liveData.lastError : "")
+                  : "")
+              : q
+              ? q.provider.toUpperCase() + " · " + q.bars + " closed bars" + (q.resampledFrom ? " · agg from " + q.resampledFrom : "")
+              : loading
+                  ? "FETCHING CLOSED BARS…"
+                  : selectedDataset ? "WAITING FOR DATASET" : "WAITING FOR PROVIDER"}
         </span>
         <span
           className={cn(
@@ -140,7 +459,7 @@ function ChartCard({
             (q?.coverage === "PROVIDER_LIMIT" || q?.coverage === "INSUFFICIENT") && "text-[#e7b86d]"
           )}
         >
-          {q ? `${q.coverage} · ${q.coveredDays}d` : ""}
+          {q?.datasetId ? "HASH VERIFIED" : q ? `${q.coverage} · ${q.coveredDays}d` : ""}
         </span>
       </div>
     </article>
@@ -153,15 +472,40 @@ export function DeskPanel({
   symbols,
   focusSymbol,
   onFocus,
+  refreshKey = 0,
 }: {
   slots: ChartSlot[];
   onSlotsChange: (slots: ChartSlot[]) => void;
   symbols: Array<{ symbol: string; name: string; decimals: number }>;
   focusSymbol: string;
   onFocus: (symbol: string) => void;
+  refreshKey?: number;
 }) {
+  const { data: catalog } = usePolling<DatasetCatalogResponse>(
+    "/api/market-data/datasets",
+    60_000,
+    refreshKey
+  );
+  const { data: monitorStatus } = usePolling<MonitorStatusResponse>("/api/market-data/monitor", 15_000);
+  const [includeReviewDatasets, setIncludeReviewDatasets] = useState(false);
+  const datasets = catalog?.datasets ?? [];
+  const localDatasets = datasets;
+  const chartSymbols = useMemo(() => {
+    const combined = [...symbols];
+    const seen = new Set(combined.map((item) => item.symbol));
+    for (const dataset of datasets) {
+      if (seen.has(dataset.instrumentId)) continue;
+      seen.add(dataset.instrumentId);
+      combined.push({
+        symbol: dataset.instrumentId,
+        name: dataset.displayName,
+        decimals: 2,
+      });
+    }
+    return combined;
+  }, [symbols, datasets]);
   const preset = slots.length; // layout preset is derived from the slot count
-  const decimalsOf = (symbol: string) => symbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
+  const decimalsOf = (symbol: string) => chartSymbols.find((s) => s.symbol === symbol)?.decimals ?? 2;
   const gridClass =
     preset === 1
       ? "grid-cols-1 grid-rows-1"
@@ -171,7 +515,7 @@ export function DeskPanel({
 
   const setPresetSafe = (n: 1 | 2 | 4) => {
     const cur = [...slots];
-    while (cur.length < n) cur.push({ symbol: symbols[cur.length % symbols.length]?.symbol ?? "BTCUSDT", tf: "4h" });
+    while (cur.length < n) cur.push({ symbol: chartSymbols[cur.length % chartSymbols.length]?.symbol ?? "BTCUSDT", tf: "4h" });
     onSlotsChange(cur.slice(0, n));
   };
 
@@ -180,9 +524,24 @@ export function DeskPanel({
       <div className="panel-head">
         <div className="flex items-center gap-2">
           <span>CHART CANVAS</span>
-          <span className="text-[9px] font-normal text-[#687e90]">closed bars · independent panels</span>
+          <span className="text-[9px] font-normal text-[#687e90]">
+            closed bars · independent panels · {localDatasets.filter((dataset) => dataset.qualityStatus === "PASS").length} PASS / {localDatasets.filter((dataset) => dataset.qualityStatus === "REVIEW").length} REVIEW
+          </span>
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIncludeReviewDatasets((value) => !value)}
+            aria-pressed={includeReviewDatasets}
+            className={cn(
+              "h-6 px-2 text-[9px]",
+              includeReviewDatasets ? "text-[#e7b86d] bg-[#302719]" : "text-[#8193a3]"
+            )}
+            title="REVIEW datasets may contain unclassified session gaps or resolved duplicates"
+          >
+            REVIEW {includeReviewDatasets ? "ON" : "OFF"}
+          </Button>
           <LayoutGrid className="w-3 h-3 text-[#687e90]" aria-hidden />
           {([1, 2, 4] as const).map((n) => (
             <Button
@@ -202,26 +561,57 @@ export function DeskPanel({
           ))}
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 border-b border-[#1d2c38] text-[9px] text-[#748999]">
+        <span className="text-[#e7b86d]">EXPERIMENTAL POLLING · NOT THE CHART FEED</span>
+        {(monitorStatus?.instruments ?? []).map((item) => {
+          const tick = item.snapshot?.tick;
+          const color = item.state === "FRESH"
+            ? "text-[#4bc39a]"
+            : item.state === "STALE" || item.state === "ERROR"
+              ? "text-[#ef777d]"
+              : item.state === "NOT_STARTED"
+                ? "text-[#748999]"
+                : "text-[#e7b86d]";
+          return (
+            <span key={item.instrumentId} className={cn("tnum", color)} title={item.poller?.lastError ?? undefined}>
+              {item.instrumentId} · {item.state}
+              {tick ? ` · ${fmtPrice(tick.bid, 2)} / ${fmtPrice(tick.ask, 2)} · ${tick.spreadBps?.toFixed(2) ?? "—"} bps` : ""}
+            </span>
+          );
+        })}
+        {!monitorStatus && <span>status unavailable</span>}
+        {monitorStatus?.instruments.every((item) => item.state === "NOT_STARTED") && (
+          <span>start with bun run market-data:monitor -- --instrument XAUUSD-DUKA</span>
+        )}
+      </div>
       <div className={cn("grid gap-1.5 p-1.5 flex-1 min-h-0", gridClass)}>
         {slots.map((slot, i) => (
           <ChartCard
-            key={i}
+            key={String(i) + "-" + slot.symbol + "-" + slot.tf + "-" + (slot.datasetId ?? "provider")}
             slot={slot}
-            symbols={symbols}
+            symbols={chartSymbols}
             onFocus={() => onFocus(slot.symbol)}
             isFocused={slot.symbol === focusSymbol}
             onSymbolChange={(symbol) => {
               const next = [...slots];
-              next[i] = { ...slot, symbol };
+              next[i] = { ...slot, symbol, datasetId: undefined };
               onSlotsChange(next);
               onFocus(symbol);
             }}
             onTfChange={(tf) => {
               const next = [...slots];
-              next[i] = { ...slot, tf };
+              next[i] = { ...slot, tf, datasetId: undefined };
               onSlotsChange(next);
             }}
             priceDecimals={decimalsOf(slot.symbol)}
+            refreshKey={refreshKey}
+            datasets={localDatasets}
+            includeReview={includeReviewDatasets}
+            onDatasetChange={(datasetId) => {
+              const next = [...slots];
+              next[i] = { ...slot, datasetId: datasetId ?? undefined };
+              onSlotsChange(next);
+            }}
           />
         ))}
       </div>

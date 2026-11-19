@@ -12,7 +12,7 @@
 import type { Timeframe } from "@/lib/engine/types";
 
 export type AssetClass = "crypto" | "futures" | "forex" | "index";
-export type SessionKind = "24/7" | "futures" | "forex" | "index";
+export type SessionKind = "24/7" | "futures" | "forex" | "index" | "metals";
 
 export interface Instrument {
   symbol: string; // canonical AMI id
