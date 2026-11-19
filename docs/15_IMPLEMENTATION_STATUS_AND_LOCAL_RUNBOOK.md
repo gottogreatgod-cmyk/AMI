@@ -238,4 +238,4 @@ AMI is ready for local observation only when the user can:
 - see a current live setup only after the automatic live worker has consumed the corresponding newly closed bar and persisted its event;
 - see risk marked unavailable until actual venue economics have been independently verified.
 
-The branch currently implements the local runner, monitor health/supervision, M1 same-side chart tail, historical replay engine, one detector, replay persistence and Day Review UI. The real-data, real-session, live-opportunity worker, economics and Playwright acceptance gates remain open.
+The branch now also includes the first live opportunity worker, persistent quote-side cursors, a live monitor panel and a verified-dataset recovery attempt. These additions are code-complete but still require real local/provider validation. The real-data, real-session, economics and Playwright acceptance gates remain open.
