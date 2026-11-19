@@ -535,18 +535,13 @@ At MVP-5, the user can host locally, observe the primary markets, see chart upda
 
 ## 7. Local hosting runbook target
 
-The repository already uses Bun and has scripts for the app, DB and monitor. The intended local commands, after the supervisor and docs are completed, should be:
+The repository already uses Bun and has scripts for the app, DB and monitor. The implemented all-in-one local commands are:
 
 ```powershell
 # From the AMI repository root
 bun install --frozen-lockfile
-Copy-Item .env.example .env
-# Edit .env: local DATABASE_URL, unique NEXTAUTH_SECRET,
-# NEXTAUTH_URL=http://localhost:3000
-
-bun run db:generate
-bun run db:push
-bun run dev
+bun run local:setup
+bun run local:station -- start
 ```
 
 In separate PowerShell terminals, the existing experimental workers can currently be invoked as:
