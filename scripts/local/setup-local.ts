@@ -10,12 +10,10 @@ const TARGET = join(ROOT, ".env");
 
 async function main(): Promise<void> {
   try {
-    const existing = await readFile(TARGET, "utf8");
-    if (existing.length > 0) {
-      process.stdout.write("[AMI] .env already exists. It was not changed or overwritten.\n");
-      process.stdout.write("[AMI] Check DATABASE_URL, NEXTAUTH_SECRET (32+ characters), and NEXTAUTH_URL=http://127.0.0.1:3000.\n");
-      return;
-    }
+    await readFile(TARGET, "utf8");
+    process.stdout.write("[AMI] .env already exists. It was not changed or overwritten.\n");
+    process.stdout.write("[AMI] Check DATABASE_URL, NEXTAUTH_SECRET (32+ characters), and NEXTAUTH_URL=http://127.0.0.1:3000.\n");
+    return;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
