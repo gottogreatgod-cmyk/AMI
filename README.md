@@ -37,10 +37,10 @@ Requirements: Bun, a supported Node-compatible environment for Next.js, and Wind
 
 ```powershell
 bun install --frozen-lockfile
-Copy-Item .env.example .env
+bun run local:setup
 ```
 
-Set these values in `.env`:
+The setup command creates a private `.env` with the template's SQLite path and a newly generated 256-bit NextAuth secret. It does not overwrite an existing `.env`; if you already have one, verify the values below:
 
 ```dotenv
 DATABASE_URL=file:../db/ami.db
