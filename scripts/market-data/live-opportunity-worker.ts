@@ -21,7 +21,6 @@ import {
 } from "../../src/lib/engine/replay/detectors/structure-break-retest-detector";
 import {
   fingerprintForwardBar,
-  fingerprintForwardBar,
   processForwardClosedBars,
   type ForwardBar,
   type ForwardCursor,
