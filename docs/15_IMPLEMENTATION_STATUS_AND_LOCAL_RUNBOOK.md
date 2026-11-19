@@ -186,7 +186,7 @@ Repeat for the affected cursor only. Reseeding increments its cursor generation,
 1. Run the new local launcher on the user's actual Windows installation.
 2. Confirm the Next.js app, SQLite DB, supervisor and both poller children each produce correct PID/heartbeat state.
 3. Confirm supervisor restart behavior after one worker is deliberately stopped; confirm retry exhaustion requires manual intervention.
-4. Download a real M1 bid+ask sample for each target instrument.
+4. Download a real M1 bid+ask sample for each target instrument and verify the derived M5/M15/H1/H4 aggregates against independently imported source timeframes where available.
 5. Run import verification, inspect row counts, duplicate timestamps, zero-range bars, outliers and every missing interval. Classify gaps using a calendar only after the calendar is sourced.
 6. Compare importer results to an independent source or a manually inspected platform export for selected dates.
 
@@ -238,4 +238,6 @@ AMI is ready for local observation only when the user can:
 - see a current live setup only after the automatic live worker has consumed the corresponding newly closed bar and persisted its event;
 - see risk marked unavailable until actual venue economics have been independently verified.
 
-The branch now also includes the first live opportunity worker, persistent quote-side cursors, a live monitor panel and a verified-dataset recovery attempt. These additions are code-complete but still require real local/provider validation. The real-data, real-session, economics and Playwright acceptance gates remain open.
+The branch now also includes the first live opportunity worker, persistent quote-side cursors, a live monitor panel, exact verified-dataset recovery checks, deterministic M1-to-higher-timeframe aggregation and an authenticated aggregate API. These additions are code-complete but still require real local/provider validation. The real-data, real-session, economics and Playwright acceptance gates remain open.
+
+Latest verified head `45adc1b96449307c77056c344ae288fe7d809a10` passed GitHub Actions run #597: lint, strict TypeScript, 185 deterministic tests (0 failures), importer/CLI smoke tests and production build. This remains offline CI, not live provider certification.
