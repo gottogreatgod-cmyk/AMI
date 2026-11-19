@@ -142,7 +142,7 @@ export async function GET() {
       },
       cursors: [...results, ...missing],
       fetchedAt: now,
-      note: "LIVE_MONITOR events were processed after a persisted watermark from newly closed M1 bars. LIVE_BOOTSTRAP events reconstruct recent context when a cursor is first started or explicitly reseeded; they are not alerts received live at that historical time. GAP_UNRECONCILED pauses the cursor until a deliberate recovery/reseed. No broker orders or fills are created.",
+      note: "LIVE_MONITOR events were processed after a persisted watermark from newly closed M1 bars. LIVE_BOOTSTRAP events reconstruct recent context when a cursor is first started or explicitly reseeded; they are not alerts received live at that historical time. GAP_UNRECONCILED pauses processing while the worker attempts an exact PASS-dataset recovery; if no revision matches both watermark and live-tail fingerprints, an operator must inspect the gap before any reseed. No broker orders or fills are created.",
     });
   } catch (error) {
     return serverError(error);
