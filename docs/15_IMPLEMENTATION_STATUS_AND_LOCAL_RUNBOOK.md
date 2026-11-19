@@ -240,4 +240,4 @@ AMI is ready for local observation only when the user can:
 
 The branch now also includes the first live opportunity worker, persistent quote-side cursors, a live monitor panel, exact verified-dataset recovery checks, deterministic M1-to-higher-timeframe aggregation and an authenticated aggregate API. These additions are code-complete but still require real local/provider validation. The real-data, real-session, economics and Playwright acceptance gates remain open.
 
-Latest verified head `45adc1b96449307c77056c344ae288fe7d809a10` passed GitHub Actions run #597: lint, strict TypeScript, 185 deterministic tests (0 failures), importer/CLI smoke tests and production build. This remains offline CI, not live provider certification.
+Latest verified code head `86e566e7ecc656c5d915e99601fbd901de2ee090` passed GitHub Actions run #604: lint, strict TypeScript, 185 deterministic tests (0 failures), importer/CLI smoke tests and production build. This remains offline CI, not live provider certification.
