@@ -100,10 +100,10 @@ From the repository root:
 
 ```powershell
 bun install --frozen-lockfile
-Copy-Item .env.example .env
+bun run local:setup
 ```
 
-Edit `.env`:
+The setup command creates `.env` from `.env.example`, generates a private 256-bit NextAuth secret and keeps the file private. It never overwrites an existing `.env`. If you already have one, check these values yourself:
 
 ```dotenv
 DATABASE_URL=file:../db/ami.db
