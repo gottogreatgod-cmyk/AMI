@@ -143,13 +143,12 @@ describe("causal structure-break/retest detector", () => {
 
   test("transitions through the short-side FORMING, ARMED and TRIGGERED lifecycle", () => {
     const bars = series([
-      { high: 11, low: 9, close: 10 },
-      { high: 15, low: 10, close: 14 },
-      { high: 12, low: 8, close: 10 },
-      { high: 13, low: 9, close: 9 },
-      { high: 12, low: 6, close: 7 },
-      { high: 9, low: 7, close: 7.5 },
-      { high: 7.4, low: 5, close: 5.5 },
+      { high: 31, low: 29, close: 30 },
+      { high: 30, low: 25, close: 26 },
+      { high: 32, low: 28, close: 29 },
+      { high: 31, low: 23, close: 24 },
+      { high: 25.5, low: 23.5, close: 24.5 },
+      { high: 24.8, low: 23, close: 23.2 },
     ]);
     const result = replay(bars);
     const shortEvents = result.events.filter((event) =>
@@ -169,13 +168,12 @@ describe("causal structure-break/retest detector", () => {
 
   test("invalidates a short setup when a later close exceeds the retest high", () => {
     const bars = series([
-      { high: 11, low: 9, close: 10 },
-      { high: 15, low: 10, close: 14 },
-      { high: 12, low: 8, close: 10 },
-      { high: 13, low: 9, close: 9 },
-      { high: 12, low: 6, close: 7 },
-      { high: 9, low: 7, close: 7.5 },
-      { high: 10, low: 6, close: 9.5 },
+      { high: 31, low: 29, close: 30 },
+      { high: 30, low: 25, close: 26 },
+      { high: 32, low: 28, close: 29 },
+      { high: 31, low: 23, close: 24 },
+      { high: 25.5, low: 23.5, close: 24.5 },
+      { high: 26, low: 23, close: 26 },
     ]);
     const result = replay(bars);
     expect(result.events.map((event) => event.type)).toEqual([
