@@ -272,7 +272,7 @@ export function processForwardClosedBars<State>(input: {
         ...event,
         bar,
         sourceBarFingerprint,
-        origin: "LIVE_MONITOR",
+        origin: input.processingOrigin ?? "LIVE_MONITOR",
       });
     }
     barsProcessedCount++;
