@@ -38,6 +38,47 @@ let writeQueue: Promise<void> = Promise.resolve();
 
 const sleep = (ms: number) => new Promise<void>((resolvePromise) => setTimeout(resolvePromise, ms));
 
+async function waitForHttpReady(url: string, timeoutMs = 60_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastStatus = "not reachable";
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url, { redirect: "manual" });
+      lastStatus = "HTTP " + response.status;
+      if (response.status < 500) {
+        await response.body?.cancel();
+        return;
+      }
+      await response.body?.cancel();
+    } catch (error) {
+      lastStatus = error instanceof Error ? error.message : String(error);
+    }
+    await sleep(500);
+  }
+  throw new Error("Next.js did not become ready within " + timeoutMs + "ms (" + lastStatus + ").");
+}
+
+async function waitForSupervisorSnapshot(timeoutMs = 30_000): Promise<void> {
+  const snapshotPath = join(MONITOR_ROOT, "local-supervisor.latest.json");
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const snapshot = JSON.parse(await readFile(snapshotPath, "utf8")) as {
+        state?: string;
+        workers?: unknown[];
+      };
+      if (snapshot.state === "RUNNING" && Array.isArray(snapshot.workers) && snapshot.workers.length === 6) {
+        return;
+      }
+    } catch {
+      // The supervisor may still be creating its first atomic snapshot.
+    }
+    await sleep(250);
+  }
+  throw new Error("Market-data supervisor did not publish its six-worker readiness snapshot within " + timeoutMs + "ms.");
+}
+
+
 function processAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -224,10 +265,15 @@ async function start(): Promise<void> {
       stderr: "inherit",
     });
 
+    await Promise.all([
+      waitForHttpReady("http://127.0.0.1:3000"),
+      waitForSupervisorSnapshot(),
+    ]);
     state = "RUNNING";
     await writeSnapshot();
-    process.stdout.write("\n[AMI] Local observation workstation is starting. Open http://127.0.0.1:3000.\n");
-    process.stdout.write("[AMI] Press Ctrl+C to stop the app and both market-data pollers.\n");
+    process.stdout.write("\n[AMI] Local observation workstation is ready. Open http://127.0.0.1:3000.\n");
+    process.stdout.write("[AMI] The six managed market processes are registered. Feed freshness is reported separately in the workstation.\n");
+    process.stdout.write("[AMI] Press Ctrl+C to stop the app and market-data workers.\n");
     const result = await Promise.race([
       app.exited.then((code) => ({ service: "Next.js", code })),
       supervisor.exited.then((code) => ({ service: "market-data supervisor", code })),
