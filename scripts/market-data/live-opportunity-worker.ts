@@ -344,7 +344,7 @@ async function recoverFromVerifiedDataset(input: {
     lastProcessedBarCloseTs: number | null;
     lastProcessedBarFingerprint: string | null;
   };
-  latestLiveBarTs: number;
+  latestLiveBar: ForwardBar;
 }) {
   if (input.cursor.lastProcessedBarTs === null ||
       input.cursor.lastProcessedBarFingerprint === null) return null;
@@ -384,7 +384,7 @@ async function recoverFromVerifiedDataset(input: {
       const bars: ForwardBar[] = dataset.bars
         .filter((bar) =>
           bar.t >= input.cursor.lastProcessedBarTs! &&
-          bar.t <= input.latestLiveBarTs
+          bar.t <= input.latestLiveBar.t
         )
         .map((bar) => ({
           t: bar.t,
@@ -398,8 +398,11 @@ async function recoverFromVerifiedDataset(input: {
         }));
 
       const watermark = bars.find((bar) => bar.t === input.cursor.lastProcessedBarTs);
+      const datasetTail = bars.find((bar) => bar.t === input.latestLiveBar.t);
       if (!watermark ||
-          fingerprintForwardBar(watermark) !== input.cursor.lastProcessedBarFingerprint) {
+          fingerprintForwardBar(watermark) !== input.cursor.lastProcessedBarFingerprint ||
+          !datasetTail ||
+          fingerprintForwardBar(datasetTail) !== fingerprintForwardBar(input.latestLiveBar)) {
         continue;
       }
 
@@ -421,7 +424,7 @@ async function recoverFromVerifiedDataset(input: {
 
       if (
         (recovered.status === "PROCESSED" || recovered.status === "NO_NEW_BARS") &&
-        recovered.lastProcessedBarTs === input.latestLiveBarTs
+        recovered.lastProcessedBarTs === input.latestLiveBar.t
       ) {
         return {
           result: recovered,
@@ -534,12 +537,12 @@ async function processSnapshot(input: {
   let recoveryRevisionHash: string | null = null;
 
   if (result.status === "GAP_UNRECONCILED" && snapshotData.bars.length > 0) {
-    const latestLiveBarTs = snapshotData.bars[snapshotData.bars.length - 1].t;
+    const latestLiveBar = snapshotData.bars[snapshotData.bars.length - 1];
     const recovered = await recoverFromVerifiedDataset({
       instrumentId: input.instrumentId,
       priceSide: input.priceSide,
       cursor,
-      latestLiveBarTs,
+      latestLiveBar,
     });
     if (recovered) {
       finalResult = recovered.result;
