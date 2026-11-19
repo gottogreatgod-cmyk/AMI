@@ -150,7 +150,9 @@ bun run local:station -- stop
 
 The supervisor launches two M1 pollers and four live opportunity workers (BID and ASK for XAUUSD-DUKA and NAS100-DUKA). It checks the persisted cursor every five seconds, but it only transitions setups on newly closed bars from a fresh polling snapshot. The monitor is separate from the historical downloader. If the provider cannot return a current tick, the feed state will show NO_TICK/STALE/ERROR and live detector processing will pause.
 
-If a live cursor enters `GAP_UNRECONCILED`, AMI will not skip the missing bars. The worker is currently fail-closed: stop the supervisor, inspect/download and verify the exact missing interval, then deliberately reseed that specific instrument/side cursor from a fresh snapshot only if you accept that the prior active state cannot be reconstructed by the current poll-snapshot worker:
+If a live cursor enters `GAP_UNRECONCILED`, AMI will not skip the missing bars. The worker first attempts automatic reconciliation from an exact PASS dataset revision for the same instrument, M1 timeframe and BID/ASK side. It requires both the stored watermark candle and latest live candle to match the dataset fingerprints, then the shared processor verifies every intervening M1 timestamp. Recovered transitions are labelled `LIVE_RECOVERY` and retain the dataset revision ID/hash. If no exact continuous revision is available, the cursor remains paused.
+
+Only after inspecting the missing interval should you deliberately reseed the affected cursor, and only if you accept that the previous active detector state will not be reconstructed:
 
 ```powershell
 bun run local:station -- stop
@@ -158,7 +160,7 @@ bun run scripts/market-data/live-opportunity-worker.ts --instrument XAUUSD-DUKA 
 bun run local:station -- start
 ```
 
-Repeat for the affected cursor only. Reseeding increments its cursor generation, retains its prior event history, and labels new seed events `LIVE_BOOTSTRAP`. It does not certify or repair the missing interval. Dataset-backed automatic catch-up/reconciliation remains a next-stage requirement.
+Repeat for the affected cursor only. Reseeding increments its cursor generation, retains its prior event history, and labels new seed events `LIVE_BOOTSTRAP`. It does not repair or certify the missing interval.
 
 ### 3.4 Use the charts and Day Review
 
@@ -184,7 +186,7 @@ Repeat for the affected cursor only. Reseeding increments its cursor generation,
 ### Stage A — Local and feed certification
 
 1. Run the new local launcher on the user's actual Windows installation.
-2. Confirm the Next.js app, SQLite DB, supervisor and both poller children each produce correct PID/heartbeat state.
+2. Confirm the Next.js app, SQLite DB, supervisor, two market pollers and four opportunity workers produce correct PID/heartbeat state.
 3. Confirm supervisor restart behavior after one worker is deliberately stopped; confirm retry exhaustion requires manual intervention.
 4. Download a real M1 bid+ask sample for each target instrument and verify the derived M5/M15/H1/H4 aggregates against independently imported source timeframes where available.
 5. Run import verification, inspect row counts, duplicate timestamps, zero-range bars, outliers and every missing interval. Classify gaps using a calendar only after the calendar is sourced.
