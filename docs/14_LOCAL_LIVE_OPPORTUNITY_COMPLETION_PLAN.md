@@ -639,7 +639,7 @@ This section maps the original phases to the actual code on branch `ami/local-li
 | Original phase | Current implementation | Completion state | Remaining acceptance |
 |---|---|---|---|
 | 0 — Decisions and ground rules | `docs/16_MARKET_CONVENTIONS_AND_GOLDEN_DAYS.md`; XAUUSD-DUKA and NAS100-DUKA identities; UTC review range; quote-side rules; detector v1.0.0 vocabulary | Partially implemented | User's actual broker/execution venue, account currency, trading-day roll and approved setup vocabulary still require confirmation |
-| 1 — Verified market data | Dukascopy M1/M5/M15/M30/H1/H4/D1 importer; separate BID/ASK revisions; importer v2; hashes; strict missing-interval diagnostics | Code implemented | Actual BID/ASK archives for both instruments must be downloaded, quality reports inspected and anomalies classified |
+| 1 — Verified market data | Dukascopy M1/M5/M15/M30/H1/H4/D1 importer; separate BID/ASK revisions; importer v2; hashes; strict missing-interval diagnostics; deterministic UTC M1 aggregation to M5/M15/M30/H1/H4/D1 and authenticated aggregate API | Code implemented | Actual BID/ASK archives for both instruments must be downloaded, quality reports inspected and anomalies classified |
 | 2 — Instrument spec registry | Existing risk calculator refuses unknown economics | Not complete for the target instruments | Exact venue-specific contract size, tick/point value, margin, fees, quantity steps, financing and currency conversion must be verified |
 | 3 — Chart workstation shell | Existing 1/2/4 workstation; local M1 selection; chart-range API; side-specific recent poll tail; separate tick/spread display; historical Day Review chart | Code implemented | Verify in a real browser and confirm quote-side/closed-bar behaviour against live snapshots |
 | 4 — Setup engine and day review | Pure causal replay engine; structure-break/retest detector v1.0.0; replay API; transactional persistent replay/event log; Day Review lifecycle timeline and retrospective markers | Code implemented | Curate real golden days and compare with hand-annotated expectations; add more detector types only after baseline validation |
@@ -677,7 +677,7 @@ The local launcher manages the Next.js workstation on `127.0.0.1:3000` and start
 - XAUUSD-DUKA BID and ASK closed-bar opportunity workers;
 - NAS100-DUKA BID and ASK closed-bar opportunity workers.
 
-The monitor currently keeps a rolling 64-bar M1 sample. The detector processes only closed candles; the forming candle can be displayed but cannot advance the lifecycle. The first structure-break/retest pattern can remain active for at most 20 bars after its break/retest windows, so this sample provides a reasonable startup context for this v1 detector. It is not a replacement for full historical Day Review.
+The market-data library now also exposes deterministic fixed-UTC M1 aggregation into M5/M15/M30/H1/H4/D1. Incomplete buckets are omitted and reported; provider-reported volume is summed only when declared by the source manifest, otherwise volume is explicitly unavailable. The authenticated endpoint is `/api/market-data/datasets/{datasetId}/aggregate?timeframe=m5` (also `m15`, `m30`, `h1`, `h4`, `d1`). The monitor currently keeps a rolling 64-bar M1 sample. The detector processes only closed candles; the forming candle can be displayed but cannot advance the lifecycle. The first structure-break/retest pattern can remain active for at most 20 bars after its break/retest windows, so this sample provides a reasonable startup context for this v1 detector. It is not a replacement for full historical Day Review.
 
 ### 11.3 Proposed completion plan from this implementation point
 
@@ -690,6 +690,13 @@ The monitor currently keeps a rolling 64-bar M1 sample. The detector processes o
 7. **Risk certification:** only after the actual broker/venue is selected, source the full contract economics and conversions, record provenance, and independently cross-check the calculator. Until that is done, show risk as unavailable and do not calculate position size.
 8. **Browser and operational acceptance:** add Playwright tests for authentication, 1/2/4 chart layouts, local/provider switch, M1 side matching, stale/reconnect state, Day Review, event markers, supervisor restart and recovery. Run ten consecutive real sessions per instrument before declaring the first useful version accepted.
 
-### 11.4 Release boundary
+### 11.4 Latest code verification snapshot (2026-11-19)
+
+- Branch head at this snapshot: `45adc1b96449307c77056c344ae288fe7d809a10`.
+- GitHub Actions run #597: PASS — lint, strict TypeScript, deterministic unit/engine tests (185 passed, 0 failed), importer tests, CLI smoke tests and production build.
+- Run #596 also passed the same complete validation before the authenticated aggregation endpoint was added.
+- The green workflow validates repository code and offline fixtures only. It does not certify real Dukascopy archives, a Windows local run, live feed availability, market-session calendars, broker economics or ten-session acceptance.
+
+### 11.5 Release boundary
 
 The implementation provides a local observation and retrospective opportunity research workstation. It does not yet provide a certified trading signal, strategy profitability, simulated fill, paper order-management system, or live broker execution. Real provider/data validation, venue economics, user strategy approval and ten-session acceptance remain external gates.
