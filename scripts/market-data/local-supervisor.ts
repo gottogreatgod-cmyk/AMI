@@ -298,7 +298,7 @@ async function runSupervisor(): Promise<void> {
   process.on("SIGTERM", () => { void shutdown(); });
 
   process.stdout.write(
-    "AMI local market-data supervisor starting two experimental Dukascopy M1 pollers. " +
+    "AMI local supervisor starting two experimental Dukascopy M1 pollers and four closed-bar opportunity workers. " +
     "No broker orders are enabled. Press Ctrl+C to stop.\n"
   );
 
