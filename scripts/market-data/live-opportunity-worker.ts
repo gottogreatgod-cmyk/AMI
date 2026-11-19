@@ -288,7 +288,8 @@ async function getSnapshot(instrumentId: InstrumentId, priceSide: PriceSide) {
       const parsed = {
         t: finite(row.t), ct: finite(row.ct), o: finite(row.o),
         h: finite(row.h), l: finite(row.l), c: finite(row.c),
-        v: finite(row.v), forming: row.forming === true,
+        // The live detector contract requires a numeric placeholder. Zero here means volume is unavailable, not zero traded volume.
+        v: finite(row.v) ?? 0, forming: row.forming === true,
       };
       if (Object.values(parsed).some((item) => item === null || item === undefined)) return null;
       const bar: ForwardBar = {
